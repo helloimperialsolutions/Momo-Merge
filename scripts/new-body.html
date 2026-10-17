@@ -1,0 +1,116 @@
+<body>
+<div id="rotateOv" class="hide"><div class="rotIn"><div class="rotIco">📱</div><div data-i18n="rotate1">Turn your phone upright</div><div class="rotSub" data-i18n="rotate2">This game is played in portrait</div></div></div>
+<div id="app">
+  <header>
+    <button class="rbtn" id="homeBtn" aria-label="home">🏠</button>
+    <button class="rbtn" id="muteBtn" aria-label="sound">🔊</button>
+    <div class="scoreBox" id="scoreBox"><span data-i18n="score">SCORE</span><b id="score">0</b></div>
+    <div class="scoreBox best"><span data-i18n="best">BEST</span><b id="best">0</b></div>
+    <button class="rbtn" id="restartBtn" aria-label="restart">↺</button>
+  </header>
+  <div id="toolbar">
+    <button class="pbtn bomb" id="bombBtn" aria-label="bomb">💣<span class="pb" id="bombB">0</span></button>
+    <button class="pbtn" id="sweepBtn" aria-label="sweep">🧹<span class="pb" id="sweepB">1</span></button>
+    <button class="pbtn" id="undoBtn" aria-label="undo">↩<span class="pb" id="undoB">1</span></button>
+    <button class="pbtn ice" id="freezeBtn" aria-label="freeze">❄<span class="pb" id="freezeB">1</span></button>
+    <div id="nextWrap"><span data-i18n="next">NEXT</span> <canvas id="nextCv"></canvas></div>
+  </div>
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<!-- HOME (alive) -->
+<div class="ov home" id="startOv">
+  <div class="homeTop">
+    <button class="langBtn" id="langBtn" aria-label="language">🌐 <span id="langLabel">English</span></button>
+    <button class="rbtn" id="volBtnHome" aria-label="volume">🔊</button>
+  </div>
+  <div class="homeTitle">
+    <h1>FRUIT MERGE</h1>
+    <p><span id="titleFruit">🍉</span> <span data-i18n="tagline">Merge the fruits · grow a watermelon!</span></p>
+  </div>
+  <div class="homeBottom">
+    <div class="homeStats">
+      <div class="hstat">👑 <span data-i18n="bestShort">BEST</span> <b id="homeBest">0</b></div>
+      <div class="hstat">🍉 <b id="homeMelons">0</b></div>
+      <div class="hstat" id="achBtn">🏅 <span id="achCount">0/9</span></div>
+    </div>
+    <button class="playBig" id="playBtn" data-i18n="play">▶ PLAY</button>
+    <div class="chips">
+      <button class="chip2" id="themeBtn">🎨 Desi Fruits</button>
+      <button class="chip2" id="dailyBtn">🎲 Daily: OFF</button>
+      <button class="chip2" id="luckyBtn">🎁 Lucky Box</button>
+    </div>
+    <p id="homeMsg"></p>
+    <p class="homeCredit">Fruit Merge</p>
+  </div>
+</div>
+
+<!-- ACHIEVEMENTS -->
+<div class="ov hide" id="achOv">
+  <div class="card">
+    <div class="achHead">
+      <div class="achMedal">🏅</div>
+      <div style="text-align:left">
+        <h2 data-i18n="achTitle">Achievements</h2>
+        <p><span id="achSub">0 / 9 unlocked</span></p>
+      </div>
+    </div>
+    <div class="achBar"><i id="achFill" style="width:0%"></i></div>
+    <div class="achGrid" id="achGrid"></div>
+    <button class="btn main" id="achClose" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<!-- GAME OVER / END POPUP -->
+<div class="ov hide" id="overOv">
+  <div class="card">
+    <div id="newBestBadge" class="badge" style="display:none">🎉 NEW RECORD!</div>
+    <h2 id="endTitle">Game Over!</h2>
+    <div class="endScores">
+      <div class="endBox"><span data-i18n="thisRound">THIS ROUND</span><b id="finalScore">0</b></div>
+      <div class="endBox gold"><span data-i18n="bestScore">👑 BEST SCORE</span><b id="finalBest">0</b></div>
+    </div>
+    <p id="endBonus" style="font-size:16px;color:var(--pink);font-weight:900;min-height:22px;margin:2px 0"></p>
+    <p id="extraMsg" style="font-size:15px"></p>
+    <p id="melonMsg" style="font-size:15px"></p>
+    <button class="btn main" id="againBtn">↺ Play again</button>
+    <button class="btn sub" id="homeBtn3">🏠 Home screen</button>
+    <button class="btn gold" id="continueBtn">📺 Watch ad — continue with your score</button>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div class="ov hide" id="pauseOv">
+  <div class="card">
+    <div class="big">⏸</div>
+    <h2 data-i18n="paused">Paused</h2>
+    <p data-i18n="pausedSub">The game is on hold</p>
+    <button class="btn main" id="resumeBtn">▶ Keep playing</button>
+    <button class="btn sub" id="homeBtn2">🏠 Home screen</button>
+  </div>
+</div>
+
+<!-- REWARDED AD (demo) -->
+<div class="ov hide" id="adOv">
+  <div class="card">
+    <div class="big">📺</div>
+    <h2 data-i18n="rewardAd">Reward Ad</h2>
+    <p id="adCount" style="font-size:44px;color:var(--pink);font-weight:900;margin:4px 0">3</p>
+    <p data-i18n="adSub">Watch the ad to unlock this feature.</p>
+  </div>
+</div>
+
+<!-- VOLUME POPUP -->
+<div class="ov hide" id="volOv">
+  <div class="card" style="max-width:330px">
+    <div class="big" id="volIcon">🔊</div>
+    <h2 data-i18n="volume">Volume</h2>
+    <input type="range" id="volRange" min="0" max="100" value="90">
+    <div class="chips">
+      <button class="chip2" id="volTest" data-i18n="test">🎵 Test</button>
+      <button class="chip2" id="volMute">🔇 Mute</button>
+      <button class="chip2" id="volClose" data-i18n="done">✔ Done</button>
+    </div>
+  </div>
+</div>
+

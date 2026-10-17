@@ -1,0 +1,23 @@
+# Dependencies (reinstalled by `npm install` / CI)
+node_modules/
+
+# Android / Gradle build output
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+.gradle/
+
+# NEVER commit signing keys or their secrets
+*.keystore
+*.jks
+SECRETS.txt
+android/app/release.keystore
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+
+# NOTE: package-lock.json is intentionally NOT ignored — CI uses it (`npm ci`).

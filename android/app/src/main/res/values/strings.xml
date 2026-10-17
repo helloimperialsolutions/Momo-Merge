@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Momo Merge: Cute Fruit Drop</string>
+    <string name="title_activity_main">Momo Merge: Cute Fruit Drop</string>
+    <string name="package_name">com.sukoonstudio.fruitmerge</string>
+    <string name="custom_url_scheme">com.sukoonstudio.fruitmerge</string>
+</resources>

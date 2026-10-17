@@ -1,0 +1,32 @@
+{
+  "name": "momo-merge",
+  "version": "2.0.0",
+  "description": "Momo Merge: Cute Fruit Drop — Suika-style physics drop & merge puzzle. Single-file HTML5 game, Capacitor Android wrapper.",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server www -p 8081 -c-1",
+    "test": "node tests/harness.js",
+    "extract": "python3 scripts/extract.py",
+    "check": "python3 scripts/extract.py && node tests/harness.js",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "assets": "npx @capacitor/assets generate --android",
+    "build:aab": "cd android && ./gradlew bundleRelease",
+    "build:apk": "cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^7.2.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/splash-screen": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

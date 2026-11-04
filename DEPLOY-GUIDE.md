@@ -101,7 +101,7 @@ single most common mistake on this project.
 | **Android SDK Platform 36** | required by Play (see below) | inside Android Studio → SDK Manager |
 | **A Google account + $25** | Play Console (one-time) | play.google.com/console |
 | **AdMob account** (free) | mobile ads / revenue | admob.google.com |
-| **JDK 17+** | Gradle builds | bundled with Android Studio |
+| **JDK 21+** | Gradle builds | bundled with Android Studio |
 
 **Inside Android Studio → Tools → SDK Manager**, install:
 - **Android SDK Platform 36**
@@ -160,7 +160,7 @@ You mainly need to *open* it and *build* it.
 exposes native features (ads, haptics, status bar) to the JavaScript. One game, native app.
 
 ### B1. What is already configured
-- **App ID:** `com.sukoonstudio.fruitmerge` (change it in `capacitor.config.json` **before your
+- **App ID:** `com.isstudios.momomerge` (change it in `capacitor.config.json` **before your
   first build** if you want a different package name — you **cannot** change it after publishing).
 - **App name:** "Momo Merge: Cute Fruit Drop".
 - **targetSdk / compileSdk:** 36 (Play-compliant).
@@ -239,6 +239,58 @@ cd android
 
 > Prefer **Play App Signing** (Google manages a second key) — enable it in Play Console. Then
 > even if you lose your upload key you can recover via Google.
+
+### C4. ☁️ CLOUD BUILD via GitHub — no Android Studio, no SDK on your computer (RECOMMENDED)
+
+Your laptop needs **nothing big installed**: GitHub's servers run the whole Android
+build. The two workflows are already in this repo (`.github/workflows/`), the signing
+config already reads them, and `.gitignore` already keeps `node_modules` and any
+keystore out of the repo. You only click through these steps once:
+
+**Step 1 — GitHub account + push your code**
+1. Create a free account at https://github.com (remember username + password).
+2. Install **GitHub Desktop** (https://desktop.github.com, ~150 MB) and sign in.
+   (Command-line alternative: install git, then `git init` inside this folder,
+   create an empty **Private** repo `fruit-merge` on github.com with no README,
+   `git remote add origin https://github.com/YOUR-USERNAME/fruit-merge.git`,
+   `git push -u origin main`.)
+3. In GitHub Desktop: **File -> Add local repository** -> choose this `fruit-merge`
+   folder (create a repository there if it asks).
+4. **Publish repository** -> keep **Private** checked -> Publish.
+   Your game code is now on GitHub, and only you can see it.
+
+**Step 2 — Create your signing keystore IN THE CLOUD (once, ever)**
+1. On github.com open your repo -> **Actions** tab.
+2. Left sidebar -> **"Generate signing keystore (run ONCE)"** -> **Run workflow** -> Run.
+3. Wait for the green check (about a minute). Open the run -> **Artifacts** ->
+   download **keystore** and unzip it.
+4. You get `fruitmerge-release.keystore` + `SECRETS.txt`.
+   **Back up the .keystore file forever** (password manager + Google Drive +
+   USB): lose it and you can NEVER update the app again. **Never run this
+   workflow a second time** -- a new key will not match the old app.
+5. Go back to the run page and **delete the artifact** (it contains your key).
+
+**Step 3 — Paste the 4 secrets**
+Repo -> **Settings -> Secrets and variables -> Actions -> New repository secret**.
+Add each line from `SECRETS.txt` as its own secret, names exactly:
+`KEYSTORE_BASE64` (one very long line -- copy ALL of it, **only the part after
+`=`**, no spaces), `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+The build forgives a pasted prefix / stray spaces, and stops with a plain
+message if the copy was cut short -- if that happens, delete the secret and
+paste it again in full.
+
+**Step 4 — Build the AAB**
+1. **Actions** -> **"Build Android AAB"** -> **Run workflow**.
+   (It also rebuilds automatically on every push to `main`.)
+2. Wait ~5 minutes for green. Open the run -> **Artifacts** -> download
+   **fruitmerge-aab** -> inside is **`app-release.aab`** -- signed and ready
+   for Play Console (PART D).
+3. If you skipped Step 2/3, the same button still builds an **unsigned test
+   AAB** -- fine for trying the pipeline, but Play will not accept it.
+
+Notes: a private repo gets ~2,000 free build minutes/month (one build is ~5).
+The cloud build targets **API 36**, which Play has required since Aug 2026.
+Never click your own live ads while testing the AAB.
 
 ---
 
@@ -382,7 +434,7 @@ buttons, session, sign-out). It switches on with one free value:
 app uses Firebase Authentication instead — the game already calls the plugin
 when a build ships it:
 1. https://console.firebase.google.com -> Add project -> add an **Android app**
-   with package `com.sukoonstudio.fruitmerge`.
+   with package `com.isstudios.momomerge`.
 2. Add the SHA-1 fingerprint (Play Console -> App signing, or your release
    keystore) and download **google-services.json** into `android/app/`.
 3. In Firebase -> Authentication -> enable the **Google** provider.
@@ -454,7 +506,7 @@ zip -r fruitmerge-web.zip index.html assets admob-bridge.js privacy-policy.html
 ## PART G — Master checklist (things people forget)
 
 **Before you upload to Play:**
-- [ ] App ID (`com.sukoonstudio.fruitmerge`) is final — **cannot change after publishing**.
+- [ ] App ID (`com.isstudios.momomerge`) is final — **cannot change after publishing**.
 - [ ] Custom **app icon + splash** (not the Capacitor default).
 - [ ] `privacy-policy.html` filled in **and hosted** at a real URL.
 - [ ] **Data safety** form completed (Advertising ID declared).

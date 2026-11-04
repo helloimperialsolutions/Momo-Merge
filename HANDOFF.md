@@ -48,7 +48,7 @@ fruit-merge/
 | `tests/fm_game.js` | Game ka JS block alag se, taake harness `require`/`eval` kar sakay. **Har dafa index.html edit karne ke baad ye re-extract karna parta hai.** | ★★ |
 | `tests/fm_matter.js` | matter.js ka block alag se (same reason). | ★★ |
 | `package.json` | `npm start` (local server), `cap sync`, `cap open android`, `build:aab`. | ★★ (Android build ke liye) |
-| `capacitor.config.json` | `appId: com.sukoonstudio.fruitmerge`, `appName: "Fruit Merge: Cute Drop"`, `webDir: www`, splash bg `#f9edd2`, `androidScheme: https`. | ★★ (Android build ke liye) |
+| `capacitor.config.json` | `appId: com.isstudios.momomerge`, `appName: "Momo Merge: Cute Fruit Drop"`, `webDir: www`, splash bg `#f9edd2`, `androidScheme: https`. | ★★ (Android build ke liye) |
 
 > ⚠️ **Agar sirf ek file le kar jana ho:** `www/index.html` — game 100% isi mein hai.
 > ⚠️ **Agar Android banana ho:** `www/index.html` + `package.json` + `capacitor.config.json`.
@@ -585,8 +585,8 @@ npm run build:aab          # = cd android && ./gradlew bundleRelease
 ```
 
 Config:
-- `appId: com.sukoonstudio.fruitmerge`
-- `appName: "Fruit Merge: Cute Drop"`
+- `appId: com.isstudios.momomerge`
+- `appName: "Momo Merge: Cute Fruit Drop"`
 - `webDir: "www"`
 - splash background `#f9edd2`, duration 1000 ms, fullscreen + immersive
 - `androidScheme: "https"`, `webContentsDebuggingEnabled: false`
@@ -671,7 +671,7 @@ I am transferring a completed game project into this workspace. I am attaching:
 3) tests/          — a Node.js headless test suite (harness.js) with 9 phases A–I, all passing,
    plus fm_matter.js / fm_game.js which are script blocks extracted from index.html.
 4) package.json + capacitor.config.json — ready for a Capacitor Android wrapper
-   (appId com.sukoonstudio.fruitmerge, webDir "www").
+   (appId com.isstudios.momomerge, webDir "www").
 
 THE GAME: "Fruit Merge: Cute Drop" — a Suika/Watermelon-style physics drop-&-merge puzzle.
 Tap/drag to aim, release to drop a fruit; two identical fruits merge into the next bigger one;
@@ -734,7 +734,7 @@ stay green before you show me the result.
 
 - **Owner:** Imperial Solutions
 - **Language:** UI text Roman Urdu, code comments Roman Urdu + English mix
-- **App id:** `com.sukoonstudio.fruitmerge`
+- **App id:** `com.isstudios.momomerge`
 - **App name:** `Fruit Merge: Cute Drop`
 - **Engine:** matter-js 0.20.0 (MIT) — inlined
 - **Version:** v2 + UX batch (home screen, volume popup, finale cascade, end popup)
@@ -751,3 +751,10 @@ sirf paint/shape badla, koi id/layout/physics nahi. `:root` ke warm colors reass
 warm plank interior + grain + ink outline (`www/index.html` ~line 1353). Title flat cream (gradient-text override).
 Harness: `PASSED: 405 FAILED: 0` (skin + board ke baad bhi green). Backup pre-CSS: `/tmp/pressyle.html`.
 Revert: override block delete kar do + board draw block restore (`/tmp/pressyle.html`).
+
+## Current basket merge (2026-11-04)
+
+- Playfield basket uses the intact user-supplied `www/assets/basket-original.png` image.
+- Inner-wall bounds are measured from `BASKET_MEASURE` and scaled with the art; top flower/rim remain behind fruit, side/bottom wicker is a separate foreground pass, and the evolution strip sits below the image.
+- Matter engine, fixed-step updates, merge/scoring rules and backend are unchanged. Playfield dimensions are mapped to the basket cavity so the collision walls align with the image.
+- `tests/harness.js`: 554 checks pass in the current workspace. Android offline `assets/public/` mirrors `www/`.

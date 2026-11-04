@@ -122,6 +122,6 @@ ready — the cloud build above means storage is no longer a blocker.
 
 Also, two things you said you were waiting on:
 - **AdMob does NOT require Play Console.** You can create the AdMob app now with just the
-  package name `com.sukoonstudio.fruitmerge`; link the Play listing later.
+  package name `com.isstudios.momomerge`; link the Play listing later.
 - **The $25 is only charged when you actually create the Play developer account** — you can
   finish everything else (build, AdMob, listing text, screenshots) first and pay at the end.

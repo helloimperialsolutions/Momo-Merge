@@ -1,0 +1,10 @@
+GITHUB WEB UPLOAD — apply these files to the existing Momo-Merge repository.
+
+1. Extract this ZIP. Its contents (www/, android/, tests/, .github/, package.json, etc.) are arranged at the repository root. Do NOT upload this ZIP as a file, and do NOT add an extra wrapper folder.
+2. On GitHub, open the existing Momo-Merge repository. Select the main branch and create a new branch named `momo-basket-package-update`.
+3. On that branch, choose Add file > Upload files. From the extracted overlay folder, select all top-level files and folders (Ctrl+A inside the folder) and drag them to the upload area. The overlay is below GitHub's 100-files-per-upload and 25-MiB-per-file browser limits. Confirm paths appear as `www/...`, `android/...`, `.github/...`, not `Momo-Merge-GitHub-Overlay/...`.
+4. Commit to `momo-basket-package-update` with message `Apply Momo Merge basket and package update`.
+5. Delete the old Java file `android/app/src/main/java/com/sukoonstudio/fruitmerge/MainActivity.java`: open it in GitHub, select the trash/Delete this file control, commit that deletion to the same branch. The replacement is already at `android/app/src/main/java/com/isstudios/momomerge/MainActivity.java`.
+6. Create a Pull Request from `momo-basket-package-update` into `main`. Check the file list and ensure the old Java file is deleted and the new package references are `com.isstudios.momomerge`. Merge the PR.
+7. The `push: main` trigger should start Build Android AAB automatically. If it does not, use Actions > Build Android AAB > Run workflow > Branch: main.
+8. Do not upload an unsigned AAB. Confirm the workflow log says the keystore was verified and a SIGNED release AAB is being built.

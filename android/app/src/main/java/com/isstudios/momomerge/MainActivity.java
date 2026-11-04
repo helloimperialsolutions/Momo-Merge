@@ -1,4 +1,4 @@
-package com.sukoonstudio.fruitmerge;
+package com.isstudios.momomerge;
 
 import com.getcapacitor.BridgeActivity;
 

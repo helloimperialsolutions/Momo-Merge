@@ -1,5 +1,10 @@
 # Workspace Notes — Fruit Merge (2026-10-08)
 
+> **Current update (2026-11-04):** user supplied the AI-update assets and approved
+> `com.isstudios.momomerge` as the new package ID. User confirmed no AAB was uploaded
+> under the legacy package. See `PACKAGE-ID-MIGRATION.md`; dated notes below may describe
+> the earlier project state.
+
 Project transfer se pehla session. Ye file sirf un cheezon ka record hai jo is
 workspace mein **nayi** maloom hui — HANDOFF.md waisa hi authoritative hai.
 

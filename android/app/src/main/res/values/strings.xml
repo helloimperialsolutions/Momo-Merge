@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Momo Merge: Cute Fruit Drop</string>
     <string name="title_activity_main">Momo Merge: Cute Fruit Drop</string>
-    <string name="package_name">com.sukoonstudio.fruitmerge</string>
-    <string name="custom_url_scheme">com.sukoonstudio.fruitmerge</string>
+    <string name="package_name">com.isstudios.momomerge</string>
+    <string name="custom_url_scheme">com.isstudios.momomerge</string>
 </resources>

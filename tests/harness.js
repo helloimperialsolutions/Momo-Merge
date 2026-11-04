@@ -193,10 +193,10 @@ const IDS = ("achBtn achClose achCount achFill achGrid achOv achSub adCount adDi
   "lbTab_all lbTab_daily lbTab_weekly lbTabs lbUp loginBtn loginNudge luckyBtn luckyClose signOutBtn " +
   "nameCancel nameHint nameInput nameOv nameSave profEmail " +
   "luckyOv luckyResult luckyWheel melonMsg muteBtn netBadge netBadge2 newBestBadge nextCv " +
-  "nextWrap overOv packGrid pane_earn pane_lb pane_shop pauseOv playBtn profAvBtn profChip " +
+  "nextWrap overOv packGrid pane_earn pane_lb pane_shop pauseOv playBtn popB popBtn profAvBtn profChip " +
   "profClose profHint profName profOv rankBtnHome rankClose rankOv renameBtn restartBtn " +
   "resumeBtn rotateOv score scoreBox shopBal shopBtnHome shopClose shopGrid shopOv siGoogle " +
-  "siLater signIn spinBtn startOv sweepB sweepBtn themeBtn titleFruit toolbar undoB undoBtn " +
+  "siLater siX signIn spinBtn startOv sweepB sweepBtn themeBtn titleFruit toolbar undoB undoBtn " +
   "volBtnHome volClose volIcon volMute volOv volRange volTest").split(/\s+/);
 const els = {};
 for (const id of IDS) els[id] = mkEl(id, (id === "gameCanvas" || id === "nextCv") ? "canvas" : "div");
@@ -493,10 +493,12 @@ phase("D", "Sweep / Undo + power ad-economy");
   ok(els.sweepB.textContent.trim() === "1", `sweep badge starts at "1" (got "${els.sweepB.textContent.trim()}")`);
 
   for (let i = 0; i < 8; i++) { dropAt(60 + i * 34); pump(18); }
+  pump(70);   // settle fully: a live pile can merge AFTER the sweep removes
+              // the small fruit under it, which used to flake the count below
   const n0 = FM.count();
 
   const small0 = FM.smallFruits();
-  click("sweepBtn"); pump(6);
+  click("sweepBtn"); pump(2);
   ok(FM.count() === Math.max(0, n0 - small0), `sweep cleared all ${small0} stage 0/1/2 fruits (${n0} -> ${FM.count()})`);
   ok(FM.smallFruits() === 0, "no stage 0/1/2 fruit survives a sweep");
   ok(els.sweepB.textContent.trim() === "\uD83D\uDCFA", `sweep badge becomes the ad badge (got "${els.sweepB.textContent.trim()}")`);
@@ -1593,11 +1595,11 @@ phase("M", "Economy: diamonds, challenges, shop, profile, ranks");
     click("shopBtnHome"); pump(2);
     const shopHtml = els.shopGrid.innerHTML || "";
     const shopRows = (shopHtml.match(/data-buy="/g) || []).length;
-    ok(shopRows === 4, `all 4 shop items are rendered (got ${shopRows})`);
-    for (const id of ["bomb", "sweep", "undo", "freeze"]) {
+    ok(shopRows === 5, `all 5 shop items are rendered (got ${shopRows})`);
+    for (const id of ["bomb", "sweep", "undo", "freeze", "pop"]) {
       ok(new RegExp('data-buy="' + id + '"').test(shopHtml), `the ${id} tile is on screen`);
     }
-    pass("challenges (9) and shop items (4) render as real, wired rows");
+    pass("challenges (9) and shop items (5) render as real, wired rows");
   }
 
   /* --- M25: a finished game records the period peaks ----------------- */
@@ -2078,8 +2080,10 @@ phase("M", "Economy: diamonds, challenges, shop, profile, ranks");
     click("playBtn"); pump(6);
     FM.mergeTwo(); pump(20);
     let gg = 0;
-    while (FM.state() !== "over" && gg < 300) {
-      dropAt(0.15 + (gg % 7) * 0.11); pump(14);
+    // same forced-fill pattern the other full-game tests use: fraction-x
+    // drops + a 300 cap let a lucky board survive forever on random seeds
+    while (FM.state() !== "over" && gg < 700) {
+      dropAt(40 + (gg % 9) * 38); pump(12);
       if (FM.state() === "finale") { let f = 0; while (FM.state() === "finale" && f < 300) { pump(2); f++; } }
       gg++;
     }
@@ -2139,7 +2143,256 @@ phase("M", "Economy: diamonds, challenges, shop, profile, ranks");
     ok(els.spinBtn !== undefined, "and a spin button");
     pass("ranks screen, ad stacking, guest name, chip+nudge, avatar picker, lucky wheel");
   }
-}
+
+  /* --- M44: daily login streak (v1.1 upgrade) ------------------------- */
+  {
+    // the game runs on a fake clock: learn ITS "today" from a first claim,
+    // then build yesterday out of that date (never the host's real date)
+    D.testStreak("", 0);
+    ok(D.bumpStreak() === 1, "the first ever claim starts a day-1 streak");
+    const gp = D.streak().last.split("-").map(Number);
+    const gy = new Date(gp[0], gp[1]-1, gp[2]); gy.setDate(gy.getDate()-1);
+    const yKey = gy.getFullYear()+"-"+(gy.getMonth()+1)+"-"+gy.getDate();
+    D.testStreak(yKey, 3);
+    ok(D.bumpStreak() === 4, "a consecutive day extends the streak (3 -> 4)");
+    ok(D.streak().bonus === 20, `the day-4 streak bonus is 20 gems (got ${D.streak().bonus})`);
+    ok(D.bumpStreak() === 4, "claiming twice in one day never double-counts");
+    D.testStreak("2000-1-1", 6);
+    ok(D.bumpStreak() === 1, "a broken streak restarts at day 1");
+    ok(D.streak().bonus === 5, "day 1 pays the starter bonus");
+    ok(PAGE_SRC.includes("STREAK_BONUS"), "the streak bonus table ships in the page");
+    pass("daily login streak: extends, pays, never double-counts, resets");
+  }
+
+  /* --- M45: the sign-in box has a real close (X) button ---------------- */
+  {
+    D.doLogout(); pump(2);                 // make sure we are a guest
+    D.setSiDismissed(false);               // and the invitation is showing
+    ok(els.signIn.classList.contains("hide") === false,
+       "the sign-in box is visible to a guest");
+    ok(els.siX !== undefined, "the box carries a close (X) button");
+    ok(PAGE_SRC.includes('id="siX"'), "the X button ships in the page markup");
+    click("siX"); pump(3);
+    ok(els.signIn.classList.contains("hide") === true,
+       "tapping X closes the sign-in box");
+    D.setDia(E().dia);                     // force a UI refresh
+    ok(els.signIn.classList.contains("hide") === true,
+       "and it stays closed (same permanent dismissal as 'Not now')");
+    pass("sign-in box: X button closes it for good");
+  }
+
+  /* --- M46: daily MODE + fruit themes removed (v1.1 cleanup) ----------- */
+  {
+    ok(!PAGE_SRC.includes('id="dailyBtn"'), "the Daily ON/OFF button is gone from the page");
+    ok(!PAGE_SRC.includes('id="themeBtn"'), "the Desi/Classic theme button is gone from the page");
+    ok(!PAGE_SRC.includes("dailyMode"), "the seeded daily-mode system is out of the script");
+    ok(!PAGE_SRC.includes("Shahtoot"), "the Desi fruit set is removed (Classic remains)");
+    ok(PAGE_SRC.includes("Daily challenges"), "daily/weekly challenges (missions) stay intact");
+    ok(D.streak().bonus >= 0 && PAGE_SRC.includes("3-Day Streak"),
+       "achievement a9 now rewards the login streak instead");
+    pass("daily mode + fruit themes removed cleanly");
+  }
+
+  /* --- M47: phase-2 juice (squash-pop, floating score, watermelon party) -- */
+  {
+    click("playBtn"); pump(6);
+    ok(D.state() === "play", "juice tests start inside a game");
+    // squash-pop: a real merge stamps a pop on the newborn fruit
+    // (mergeTwo gets the retry every older merge test uses: two dropped
+    // cherries occasionally roll apart instead of kissing)
+    let sawPop = false;
+    for (let mt = 0; mt < 4 && !sawPop; mt++) {
+      D.mergeTwo();
+      for (let i = 0; i < 80 && !sawPop; i++) { pump(2); sawPop = D.juice().pops >= 1; }
+    }
+    ok(sawPop, "a merged fruit is born with a squash-pop");
+    ok(D.juice().floats.some((t) => /^\+/.test(t)), "the merge throws a floating score");
+    // combo callout: three touching cherry pairs merge inside the window
+    D.seedPair(0); D.seedPair(0); D.seedPair(0);
+    let sawCombo = false;
+    for (let i = 0; i < 240 && !sawCombo; i++) { pump(2); sawCombo = D.juice().floats.some((t) => t.includes("COMBO")); }
+    ok(sawCombo, "three fast merges shout a COMBO float");
+    // watermelon celebration: banner + confetti burst
+    D.seedPair(9);
+    let party = null;
+    for (let i = 0; i < 240 && !party; i++) { pump(2); const j = D.juice(); if (j.banner && j.confetti >= 40) party = j; }
+    ok(!!party, "growing a watermelon fires the banner + confetti");
+    ok(!!party && /Watermelon/.test(party.banner), "the banner celebrates the Watermelon");
+    // two watermelons merging = the double party
+    D.seedPair(10);
+    let sawDouble = false;
+    for (let i = 0; i < 240 && !sawDouble; i++) { pump(2); const j = D.juice(); if (j.banner && /DOUBLE/.test(j.banner)) sawDouble = true; }
+    ok(sawDouble, "two watermelons merging throw the double celebration");
+    pass("phase-2 juice: squash-pop, floating score, combo + watermelon parties");
+  }
+
+  /* --- M48: Pop power-up (phase 3) ----------------------------------- */
+  {
+    click("playBtn"); pump(6);
+    ok(D.state() === "play", "pop tests start inside a game");
+    ok(Number.isFinite(D.popInfo().inv), "old saves migrate: pop stock is a number");
+    D.setInv("pop", 2);
+    ok(D.popInfo().inv === 2 && !D.popInfo().armed, "pop stock stocks, starts disarmed");
+    for (let mt = 0; mt < 4 && D.count() < 1; mt++) { D.mergeTwo(); pump(30); }
+    ok(D.count() >= 1, "there is a fruit on the board");
+    // arming blocks the dropper: a canvas tap can never cost both
+    click("popBtn"); pump(2);
+    ok(D.popInfo().armed === true, "tapping Pop arms tap-a-fruit mode");
+    const c0 = D.count();
+    dropMid(); pump(6);
+    ok(D.count() === c0 && D.popInfo().armed, "while armed, a canvas tap does NOT drop");
+    ok(D.popAt(200, 90) === false, "tapping empty space pops nothing");
+    ok(D.popInfo().inv === 2 && D.popInfo().armed, "empty tap spends nothing, stays armed");
+    // a bomb refuses (seeded corner bomb, no physics step before the tap)
+    const bp = D.seedBomb();
+    ok(D.popAt(bp.x, bp.y) === false, "a bomb fruit refuses to pop");
+    ok(D.popInfo().inv === 2 && D.popInfo().armed, "the refused pop spends nothing");
+    click("popBtn"); pump(2);
+    ok(!D.popInfo().armed && D.popInfo().inv === 2, "tapping Pop again cancels, no spend");
+    // the real pop
+    click("popBtn"); pump(2);
+    const t0 = D.pos()[0];
+    const before = D.count();
+    ok(D.popAt(t0.x, t0.y) === true, "tapping a fruit pops it");
+    pump(2);
+    ok(D.count() === before - 1, "the popped fruit is gone");
+    ok(D.popInfo().inv === 1 && !D.popInfo().armed, "exactly one Pop spent, then disarmed");
+    // one real tap = pointerdown pops, pointerup must NOT also drop
+    click("popBtn"); pump(2);
+    const t1 = D.pos()[0]; const c1 = D.count(); const inv1 = D.popInfo().inv;
+    pointer("pointerdown", t1.x, t1.y); pointer("pointerup", t1.x, t1.y); pump(4);
+    ok(D.count() === c1 - 1 && D.popInfo().inv === inv1 - 1,
+       "one tap pops the fruit and does NOT drop a new one on release");
+    dropMid(); pump(6);
+    ok(D.count() === c1, "and the NEXT tap drops normally (the swallow is one-shot)");
+    // the shop sells it like the other powers
+    D.setDia(500);
+    const invB = D.popInfo().inv;
+    ok(D.buy("pop") === true && D.popInfo().inv === invB + 1, "the shop sells Pop for diamonds");
+    ok(PAGE_SRC.includes('id="popBtn"'), "the Pop button ships in the power bar");
+    pass("Pop power-up: arm, block-drop, refuse bomb, spend once, shop sells it");
+  }
+
+  /* --- M49: fluffy plush sprites (rendering only, logic untouched) ---- */
+  {
+    ok(PAGE_SRC.includes("assets/fruits/f"), "the plush sprite set ships with the game");
+    ok(PAGE_SRC.includes("fruitSprite(st)"), "drawFruit prefers the plush sprite when it has loaded");
+    ok(PAGE_SRC.includes("createRadialGradient"), "the canvas-drawn fallback fruit still exists underneath");
+    ok(Array.isArray(D.sprites()), "sprite state is observable for browser checks");
+    pass("fluffy plush sprites: wired in, fallback intact, logic untouched");
+  }
+
+  /* --- M50: sprite fit — the plush BALL lands on the physics circle --- */
+  {
+    ok(PAGE_SRC.includes("var SPRITE_FIT=[["), "per-fruit sprite fit table is actually defined (not just mentioned)");
+    ok(!PAGE_SRC.includes("r*2*1.24"), "the old 1.24x oversize draw is gone (fur overlapped neighbours + strip)");
+    ok(PAGE_SRC.includes("_ft[1]*_w"), "drawFruit anchors the sprite on its measured ball centre");
+    ok(PAGE_SRC.includes("[1.041,0.500,0.483]"), "Orange fit row matches the circle fit of the re-extracted (uncut) sprite");
+    ok(PAGE_SRC.includes('.png?v=4'), "sprite URLs carry a cache-buster so a replaced sprite can never be served stale");
+    pass("sprite fit: ball == physics circle, stems above only");
+  }
+
+  /* --- M51: Cherry Bomb One headings font (ships inside the game) ---- */
+  {
+    ok(PAGE_SRC.includes('@font-face'), "headings font is declared locally (no webfont fetch)");
+    ok(PAGE_SRC.includes('assets/fonts/cherry-bomb-one.woff2'), "@font-face points at the bundled woff2");
+    ok(PAGE_SRC.includes('.homeTitle h1{\n    margin:0;font-family:"Cherry Bomb One"'), "home title uses Cherry Bomb One");
+    ok(PAGE_SRC.includes('.card h2{margin:0 0 10px;font-size:28px;color:var(--ink);font-family:"Cherry Bomb One"'), "dialog headings use Cherry Bomb One");
+    pass("Cherry Bomb One: bundled + on headings only");
+  }
+
+  /* --- M52: golden fruit = same fruit + shine, not a gold wash ------- */
+  {
+    ok(!PAGE_SRC.includes("rgba(217,154,27,.50)"), "the old all-over gold wash is gone (every golden fruit looked identical)");
+    ok(PAGE_SRC.includes("rgba(255,205,64,.50)"), "golden halo glows behind the plush");
+    ok(PAGE_SRC.includes("rgba(255,196,48,.95)"), "golden rim outlines the fruit");
+    ok(PAGE_SRC.includes("rgba(255,246,196,.95)"), "golden sparkles twinkle on the fur");
+    pass("golden: same fruit, shining");
+  }
+
+  /* --- M53: user-provided custom icon sheet on the toolbar ----------- */
+  {
+    for (const n of ["home","volume","retry","bomb","sweep","undo","freeze","pop"])
+      ok(PAGE_SRC.includes(`assets/icons/${n}.png`), `toolbar uses the custom ${n} icon`);
+    ok(PAGE_SRC.includes('id="bombBtn" aria-label="bomb"><img class="uico"'), "power buttons keep ids/badges, only the glyph became art");
+    ok(PAGE_SRC.includes('querySelector(".uico")'), "volume state greys the icon art instead of wiping it (textContent trap)");
+    pass("custom icons: 8 designed icons on the toolbar");
+  }
+
+  /* --- M54: cute font system -- Cherry Bomb display + Baloo 2 text --- */
+  {
+    ok(PAGE_SRC.includes("assets/fonts/baloo2.woff2"), "Baloo 2 ships inside the game (readable cute text font)");
+    ok(PAGE_SRC.includes("CUTE FONT SYSTEM"), "whole-game font system block exists");
+    ok(PAGE_SRC.includes('.playBig{font-family:"Cherry Bomb One"'), "PLAY button uses the display font");
+    ok(PAGE_SRC.includes('.chip2{font-family:"Cherry Bomb One"'), "home pill buttons use the display font");
+    ok(PAGE_SRC.includes('.scoreBox b{font-family:"Cherry Bomb One"'), "score numbers use the display font");
+    ok(PAGE_SRC.includes('\\"Baloo 2\\",system-ui,sans-serif'), "canvas texts (floats/pills) use Baloo 2");
+    pass("fonts: Cherry Bomb display + Baloo 2 text, whole game");
+  }
+
+  /* --- M55: home nav = big circular icons (Lucky Box / Shop / Ranks) -- */
+  {
+    for (const n of ["lucky","shop","ranks"])
+      ok(PAGE_SRC.includes(`assets/icons/${n}.png`), `home uses the custom ${n} icon`);
+    ok(PAGE_SRC.includes('class="cardbtn" id="luckyBtn"'), "lucky button is a card button (id kept)");
+    ok(PAGE_SRC.includes('assets/icons/lucky.png?v=3'), "home cards use the bordered card art");
+    ok(PAGE_SRC.includes('.ov.home .cardbtn'), "home overlay lets the card buttons receive taps");
+    ok(PAGE_SRC.includes('lb.querySelector(".lbb")'), "lucky state/streak lives on a badge, never wipes the icon");
+    pass("home icons: 3 big circles, no text, handlers untouched");
+  }
+
+  /* --- M56: home stats = Option 1 storybook mini-cards --------------- */
+  {
+    ok(PAGE_SRC.includes('class="ic gold"'), "best stat has its gold icon disc");
+    ok(PAGE_SRC.includes('class="ic pink"'), "melons stat has its pink icon disc");
+    ok(PAGE_SRC.includes('class="ic sky"'), "trophies stat has its sky icon disc");
+    ok(PAGE_SRC.includes('id="achBtn"') && PAGE_SRC.includes('id="achCount"'), "achievement counter ids kept");
+    pass("home stats: storybook mini-cards, counters untouched");
+  }
+
+  /* --- M57: mobile portrait home uses the user's orchard art --------- */
+  {
+    ok(PAGE_SRC.includes('assets/home-bg-mobile.jpg'), "mobile home background asset wired");
+    ok(PAGE_SRC.includes('@media (max-width:700px) and (orientation:portrait)'), "background limited to mobile portrait");
+    ok(PAGE_SRC.includes('assets/home-bg-wide.jpg'), "wide screens get the wide orchard art");
+    ok(PAGE_SRC.includes('.homeTitle{margin-top:15vh}'), "portrait heading held below its big sun");
+    pass("home bg: user orchard picture on mobile portrait only");
+  }
+
+  /* --- M58: animated preloader with an honest loading gate ----------- */
+  {
+    ok(PAGE_SRC.includes('id="preloader"'), "preloader overlay exists");
+    ok(PAGE_SRC.includes('assets/preloader.jpg'), "preloader uses the bunny-basket art");
+    ok(PAGE_SRC.includes('plBfly') && PAGE_SRC.includes('@keyframes plFly1'), "butterflies flutter (alive, not static)");
+    ok(PAGE_SRC.includes('@keyframes plGlow') && PAGE_SRC.includes('@keyframes plBounce'), "sun glow + bouncing dots after the painted LOADING");
+    ok(PAGE_SRC.includes('#preloader::before') && PAGE_SRC.includes('assets/preloader.jpg") center/cover'), "the bunny picture is fullscreen, nothing outside it");
+    ok(PAGE_SRC.includes('@keyframes plKen') && !PAGE_SRC.includes('class="plArt"'), "scene breathes (Ken Burns), old card layout gone");
+    ok(PAGE_SRC.includes('function _plTick()'), "preloader gate polls the real load state");
+    ok(PAGE_SRC.includes('im.complete') && PAGE_SRC.includes('stalled'), "gate counts settled sprites and can never stall forever");
+    ok(PAGE_SRC.includes('rgba(255,243,214,.22)'), "both home pictures got the light wash");
+    ok(!PAGE_SRC.includes('margin-top:max(27vh,12.5vw)'), "wide heading back at its normal spot");
+    pass("preloader: animated bunny screen, honest gate, washed bgs");
+  }
+
+  /* --- M59: full basket art mapped to its inner playable area -------- */
+  {
+    ok(PAGE_SRC.includes('assets/basket-original.png?v=1'), "the intact original basket photo is loaded");
+    ok(PAGE_SRC.includes('var BASKET_MEASURE={w:736,h:931,innerL:94,innerR:644,innerT:136,innerB:865}'), "photo cavity measurements are explicit");
+    ok(PAGE_SRC.includes('function buildBasket(){'), "basket rendering function is globally scoped");
+    ok(PAGE_SRC.includes('BASKET_IMG=new Image()'), "whole basket image has an independent loader");
+    ok(PAGE_SRC.includes('cx.drawImage(BASKET_IMG,g.basketX,g.basketY,'), "whole basket image paints intact behind fruit");
+    ok(PAGE_SRC.includes('cx.rect(g.basketX,g.boxY'), "foreground clips the left wicker only");
+    ok(PAGE_SRC.includes('cx.rect(br,g.boxY'), "foreground clips the right wicker only");
+    ok(PAGE_SRC.includes('cx.rect(g.basketX,bb'), "foreground clips the lower wicker only");
+    ok(PAGE_SRC.includes('cx.clip();'), "foreground pass is clipped to side/bottom regions");
+    ok(PAGE_SRC.includes('geo.boxX=geo.basketX+bm.innerL*bs;'), "left wall maps to the measured basket cavity");
+    ok(PAGE_SRC.includes('geo.boxW=(bm.innerR-bm.innerL)*bs;'), "play width maps to the measured basket cavity");
+    ok(PAGE_SRC.includes('geo.boxY=geo.basketY+bm.innerT*bs;'), "top wall maps to the measured basket cavity");
+    ok(PAGE_SRC.includes('geo.boxH=(bm.innerB-bm.innerT)*bs;'), "floor maps to the measured basket cavity");
+    ok(PAGE_SRC.includes('geo.stripY=geo.basketY+artH+38;'), "fruit evolution strip clears the full basket image");
+    ok(PAGE_SRC.includes('var g=geo, T=60'), "Matter wall material/thickness setup stays unchanged");
+    pass("basket: intact photo, cavity-mapped playfield, clear strip");
+  }}
 
 /* ================================================================== REPORT */
 (async () => {

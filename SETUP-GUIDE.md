@@ -44,6 +44,9 @@ Main phir: `NET_CONFIG` fill + `verify_schema.py` run + sign-in flow ka full tes
 
 ## Part 2: Ads release-ready karna (UMP consent + real IDs)
 
+**STATUS: ✅ DONE (6 Nov 2026)** — real App ID + 3 unit IDs wired & confirmed, UMP consent gate added (fail-closed: bina consent ad request NAHI jayega), `showPrivacyOptions` hook added. Commit `c048bd7`.
+**Bacha sirf:** AdMob console → Privacy & messaging → GDPR message create (UMP form tabhi dikhega), device-side QA (list niche), Play Console Data Safety + trader status.
+
 ### Mujhe AdMob console se ye 4 values bhejo
 1. **App ID** (`ca-app-pub-XXXX~YYYY`) — AdMob → Apps → App settings
    *(agar app registered nahi: AdMob → Apps → Add app → Android → Play link)*

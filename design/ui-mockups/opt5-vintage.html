@@ -1,0 +1,48 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Baloo;src:url("file:///tmp/baloo.ttf")}
+*{margin:0;box-sizing:border-box;font-family:Baloo,'Trebuchet MS',sans-serif}
+body{background:#26221f;display:flex;flex-direction:column;align-items:center;padding:26px 0}
+.cap{color:#f5ead6;font-size:25px;font-weight:800;margin-bottom:14px;letter-spacing:.4px}
+.cap small{display:block;text-align:center;color:#bfae94;font-size:15.5px;font-weight:600;margin-top:3px}
+.phone{width:400px;height:720px;border-radius:36px;overflow:hidden;position:relative;flex:none}
+.bg{position:absolute;inset:0;background:url("../../www/assets/bg-portrait.jpg") center 62%/cover}
+.top{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;z-index:5}
+.title{position:absolute;top:64px;width:100%;text-align:center;z-index:4}
+.mascot{position:absolute;left:50%;top:196px;transform:translateX(-50%);width:212px;height:212px;z-index:3}
+.best{position:absolute;top:428px;width:100%;display:flex;justify-content:center;z-index:4}
+.play{position:absolute;left:50%;top:478px;transform:translateX(-50%);z-index:5;white-space:nowrap}
+.row3{position:absolute;top:600px;width:100%;display:flex;justify-content:center;gap:9px;z-index:5}
+.msg{position:absolute;top:662px;width:100%;text-align:center;z-index:4}
+.strip{position:absolute;bottom:0;width:100%;display:flex;justify-content:center;align-items:center;gap:7px;padding:10px 0 14px;z-index:4}
+.dot{border-radius:50%;flex:none}
+
+.s5 .bg{background:#f4e7c8}
+.s5 .bg::after{content:"";position:absolute;inset:10px;border:3px double #b3402a;border-radius:6px;pointer-events:none}
+.s5 .pill{background:#fbf3da;border:2px solid #b3402a;color:#b3402a;border-radius:4px;padding:3px 11px;font-weight:800;font-size:13.5px;letter-spacing:.6px;box-shadow:2px 2px 0 rgba(179,64,42,.4)}
+.s5 .round{border-radius:50%;padding:3px 7px}
+.s5 h1{font-size:49px;font-weight:800;color:#b3402a;letter-spacing:1px;text-shadow:2.5px 2.5px 0 #e8b64c}
+.s5 .title p{color:#4a7c3a;font-weight:800;font-size:15.5px;letter-spacing:3.5px;text-transform:uppercase}
+.s5 .title p::before,.s5 .title p::after{content:" ★ "}
+.s5 .mascot{border-radius:12px;border:3px solid #4a7c3a;outline:2px solid #b3402a;outline-offset:3px;background:url("../../www/assets/bg-portrait.jpg") 62% 96%/330px;box-shadow:5px 6px 0 rgba(74,124,58,.35)}
+.s5 .bestIn{background:#fbf3da;border:2.5px solid #4a7c3a;color:#7a3b2e;border-radius:4px;padding:4px 18px;font-weight:800;font-size:15.5px;letter-spacing:.8px;box-shadow:3px 3px 0 rgba(74,124,58,.35)}
+.s5 .bestIn b{color:#b3402a;font-size:18px}
+.s5 .play{background:#b3402a;color:#fbf3da;border:3px solid #7e2a1c;border-radius:8px;font-size:30px;font-weight:800;padding:10px 56px 12px;box-shadow:0 6px 0 #7e2a1c;letter-spacing:2.5px;cursor:pointer}
+.s5 .chip{background:#fbf3da;border:2.5px solid #b3402a;color:#7a3b2e;border-radius:6px;padding:6px 12px;font-weight:800;font-size:14.5px;box-shadow:2.5px 2.5px 0 rgba(179,64,42,.4)}
+.s5 .chip:nth-child(2){transform:rotate(-1.6deg);border-color:#4a7c3a;color:#4a7c3a;box-shadow:2.5px 2.5px 0 rgba(74,124,58,.4)}
+.s5 .msg{color:#7a3b2e;font-weight:700;font-size:14.5px;letter-spacing:.4px}
+.s5 .strip{background:#eeddB4}
+.s5 .dot{border:2px solid rgba(126,42,28,.5)}
+
+</style></head><body>
+<div class="cap">Style 5 · Vintage Fruit Label<small>purani peti ke label jaisa poster — chapay hue rang, stamp wali shan</small></div>
+<div class="phone s5">
+ <div class="bg"></div>
+ <div class="top"><div class="pill">🔥 4 day streak</div><div class="pill round">🐑</div></div>
+ <div class="title"><h1>Momo Merge</h1><p>Cute Fruit Drop</p></div>
+ <div class="mascot"></div>
+ <div class="best"><div class="bestIn">BEST&nbsp; <b>12,480</b> &nbsp;•&nbsp; 🍉 × 3</div></div>
+ <button class="play">▶ PLAY</button>
+ <div class="row3"><div class="chip">🎁 Lucky Box</div><div class="chip">🛒 Shop</div><div class="chip">🏆 Ranks</div></div>
+ <div class="msg">Merge, grow… and make a Watermelon! 🍉</div>
+ <div class="strip"><div class="dot" style="width:12px;height:12px;background:radial-gradient(circle at 35% 30%,#ffb3ab,#e8506a)"></div><div class="dot" style="width:14px;height:14px;background:radial-gradient(circle at 35% 30%,#ffc4d6,#f27fa5)"></div><div class="dot" style="width:16px;height:16px;background:radial-gradient(circle at 35% 30%,#d9b8ff,#8b5cf6)"></div><div class="dot" style="width:18px;height:18px;background:radial-gradient(circle at 35% 30%,#bfe3ff,#4aa8d8)"></div><div class="dot" style="width:21px;height:21px;background:radial-gradient(circle at 35% 30%,#c8f2c0,#43a55c)"></div><div class="dot" style="width:24px;height:24px;background:radial-gradient(circle at 35% 30%,#fff3a6,#f2b53c)"></div><div class="dot" style="width:28px;height:28px;background:radial-gradient(circle at 35% 30%,#ffd9a1,#ff8c42)"></div><div class="dot" style="width:33px;height:33px;background:radial-gradient(circle at 35% 30%,#ff9d9d,#e8506a)"></div></div>
+</div></body></html>

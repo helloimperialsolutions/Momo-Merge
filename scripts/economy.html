@@ -1,0 +1,138 @@
+<!-- Sign-in invitation. Sits on the home screen, not buried in the diamonds
+     panel, because a guest who never opens that panel never learns their
+     progress is device-local. Dismissible, and it never comes back. -->
+<div class="signIn hide" id="signIn">
+  <div class="signInTxt">
+    <b>Save your progress</b>
+    <span>Sign in with Google to keep your diamonds, challenges and best score on any device.</span>
+  </div>
+  <div class="signInBtns">
+    <button class="miniBtn goog" id="siGoogle">🔑 Sign in</button>
+    <button class="siLater" id="siLater">Not now</button>
+  </div>
+</div>
+
+<!-- DIAMONDS / EARN. The profile box used to live here; it is now on the home
+     screen top-right and opens profOv when tapped. -->
+<div class="ov hide" id="diaOv">
+  <div class="card diaCard">
+    <div class="diaTop">
+      <div class="diaBal"><span class="diaGem">💎</span><b id="diaBalCount">0</b></div>
+      <div class="diaTopR">
+        <div class="netBadge" id="netBadge">Local save</div>
+        <button class="iconX" id="diaClose" aria-label="close">✕</button>
+      </div>
+    </div>
+    <div class="diaPane" id="pane_earn">
+      <div class="earnRow">
+        <button class="earnBtn free on" id="freeBtn">Claim 10 💎</button>
+        <button class="earnBtn ad" id="adDiaBtn">📺 +50 💎</button>
+      </div>
+      <div id="chList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PLAYER PROFILE. Opened from the home profile chip. Holds the avatar, the
+     name, rename (login-gated) and Google sign-in. No reset button: tapping it
+     used to silently wipe the name to a default, which read as a bug. -->
+<div class="ov hide" id="profOv">
+  <div class="card diaCard">
+    <div class="diaTop">
+      <div class="diaBal"><span class="diaGem">👤</span><b>Profile</b></div>
+      <div class="diaTopR">
+        <div class="netBadge" id="netBadge2">Local save</div>
+        <button class="iconX" id="profClose" aria-label="close">✕</button>
+      </div>
+    </div>
+    <div class="profRow big">
+      <button class="profAv" id="profAvBtn" aria-label="change avatar">🍉</button>
+      <div class="profMeta">
+        <div class="profName" id="profName">Player</div>
+        <button class="miniBtn" id="renameBtn">Change name</button>
+      </div>
+      <div class="profAuth">
+        <button class="miniBtn goog" id="loginBtn">🔑 Google</button>
+      </div>
+    </div>
+    <p class="profHint" id="profHint">Sign in to keep your progress on any device.</p>
+  </div>
+</div>
+
+<!-- AVATAR PICKER. A grid of fruit faces; picking one saves it as the profile
+     picture. Works for guests and signed-in players alike. -->
+<div class="ov hide" id="avatarOv">
+  <div class="card diaCard">
+    <div class="diaTop">
+      <div class="diaBal"><span class="diaGem">🎨</span><b>Pick a face</b></div>
+      <div class="diaTopR">
+        <button class="iconX" id="avatarClose" aria-label="close">✕</button>
+      </div>
+    </div>
+    <div class="avGrid" id="avGrid"></div>
+  </div>
+</div>
+
+<!-- SHOP (its own screen) -->
+<div class="ov hide" id="shopOv">
+  <div class="card diaCard">
+    <div class="diaTop">
+      <div class="diaBal"><span class="diaGem">💎</span><b id="shopBal">0</b></div>
+      <div class="diaTopR">
+        <button class="iconX" id="shopClose" aria-label="close">✕</button>
+      </div>
+    </div>
+    <div class="soloHead">🛒 Shop</div>
+    <div class="diaPane" id="pane_shop">
+      <div class="shopGrid" id="shopGrid"></div>
+      <div class="packHead">Diamond packs <small>(demo pricing)</small></div>
+      <div class="packGrid" id="packGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RANKS (its own screen). The pane no longer carries "hide": it is the only
+     content of this screen, so it must be visible the moment it opens. -->
+<div class="ov hide" id="rankOv">
+  <div class="card diaCard">
+    <div class="diaTop">
+      <div class="diaBal"><span class="diaGem">🏆</span><b>Ranks</b></div>
+      <div class="diaTopR">
+        <button class="iconX" id="rankClose" aria-label="close">✕</button>
+      </div>
+    </div>
+    <div class="diaPane" id="pane_lb">
+      <div class="lbTabs" id="lbTabs" data-which="all">
+        <button class="dtab on" id="lbTab_all">All time</button>
+        <button class="dtab" id="lbTab_weekly">Weekly</button>
+        <button class="dtab" id="lbTab_daily">Daily</button>
+      </div>
+      <div class="lbScroll">
+        <button class="lbArrow" id="lbUp" aria-label="previous 20">▲</button>
+        <div id="lbList"></div>
+        <button class="lbArrow" id="lbDown" aria-label="next 20">▼</button>
+      </div>
+      <div class="lbInfo" id="lbInfo"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LUCKY BOX (spinner). The wheel lists the possible prizes; the pointer at
+     the top lands on whatever the spin chooses, and that prize is granted.
+     One spin per day. -->
+<div class="ov hide" id="luckyOv">
+  <div class="card diaCard">
+    <div class="diaTop">
+      <div class="diaBal"><span class="diaGem">🎁</span><b>Lucky Box</b></div>
+      <div class="diaTopR">
+        <button class="iconX" id="luckyClose" aria-label="close">✕</button>
+      </div>
+    </div>
+    <div class="luckyWrap">
+      <div class="luckyPointer">▼</div>
+      <canvas id="luckyWheel" width="280" height="280"></canvas>
+    </div>
+    <div class="luckyResult" id="luckyResult">Spin to win a prize!</div>
+    <button class="btn main" id="spinBtn">🎡 SPIN</button>
+  </div>
+</div>

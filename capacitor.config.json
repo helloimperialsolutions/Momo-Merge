@@ -1,0 +1,22 @@
+{
+  "appId": "com.isstudios.momomerge",
+  "appName": "Momo Merge: Cute Fruit Drop",
+  "webDir": "www",
+  "androidScheme": "https",
+  "webContentsDebuggingEnabled": false,
+  "backgroundColor": "#f9edd2",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1000,
+      "launchAutoHide": true,
+      "backgroundColor": "#f9edd2",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#f9edd2"
+    }
+  }
+}

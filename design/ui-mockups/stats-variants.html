@@ -1,0 +1,98 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Cherry Bomb One";src:url("../../www/assets/fonts/cherry-bomb-one.woff2")}
+@font-face{font-family:"Baloo 2";src:url("../../www/assets/fonts/baloo2.woff2");font-weight:400 800}
+*{margin:0;box-sizing:border-box}
+body{font-family:"Baloo 2",sans-serif;background:linear-gradient(#f3d9ae,#f6e3bb 40%,#cfd9a8);padding:26px 10px 34px}
+h1{font-family:"Cherry Bomb One";text-align:center;color:#8a5a2b;font-size:26px;letter-spacing:1px;margin-bottom:4px}
+.sub{text-align:center;color:#7c6a4d;font-weight:700;margin-bottom:20px;font-size:14px}
+.opt{background:rgba(255,251,240,.55);border:2px dashed rgba(138,90,43,.35);border-radius:18px;
+  padding:14px 8px 16px;margin:0 auto 18px;max-width:520px}
+.opt h2{font-family:"Cherry Bomb One";color:#8a5a2b;font-size:17px;text-align:center;margin-bottom:10px}
+.row{display:flex;gap:9px;justify-content:center;align-items:center}
+b.num{font-family:"Cherry Bomb One";font-weight:400}
+/* ---------- V1 storybook mini-cards (same family as user cards) ---------- */
+.v1 .st{display:flex;align-items:center;gap:7px;background:linear-gradient(#fffdf6,#fdf3da);
+  border:3px solid #8a5a2b;border-radius:16px;padding:5px 12px 5px 6px;box-shadow:0 3px 0 rgba(90,50,10,.25)}
+.v1 .ic{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px}
+.v1 .gold{background:radial-gradient(circle at 35% 30%,#ffe9a8,#f6bc45);border:2px solid #b97e1e}
+.v1 .pink{background:radial-gradient(circle at 35% 30%,#ffd3dd,#ff8fab);border:2px solid #d1547a}
+.v1 .sky {background:radial-gradient(circle at 35% 30%,#cdeffd,#7ec8ee);border:2px solid #3d94c4}
+.v1 small{display:block;font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:#a4835a;line-height:1}
+.v1 .num{font-size:19px;color:#6d4423;line-height:1.05}
+/* ---------- V2 bubble pills ---------- */
+.v2 .st{display:flex;align-items:center;gap:7px;background:#fffdf7;border-radius:999px;
+  padding:5px 14px 5px 5px;box-shadow:0 4px 0 rgba(90,50,10,.18), inset 0 -3px 0 rgba(240,200,130,.55);
+  border:2.5px solid #f0c98d}
+.v2 .ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff}
+.v2 .gold{background:linear-gradient(#ffcf5e,#f39c2c)} .v2 .pink{background:linear-gradient(#ff9eb5,#f45b84)}
+.v2 .sky{background:linear-gradient(#8fd4f5,#38a3dd)}
+.v2 small{display:block;font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:#b08d57;line-height:1}
+.v2 .num{font-size:18px;color:#5f4020;line-height:1.05}
+/* ---------- V3 ribbon badges ---------- */
+.v3 .st{position:relative;display:flex;align-items:center;gap:6px;color:#fff;font-weight:800;
+  padding:6px 16px;border-radius:10px;box-shadow:0 3px 0 rgba(0,0,0,.18);font-size:15px}
+.v3 .st::before,.v3 .st::after{content:"";position:absolute;top:5px;border:9px solid transparent;z-index:-1}
+.v3 .coral{background:linear-gradient(#ff8a6b,#f4603c)} .v3 .coral::before{left:-13px;border-right-color:#d34a28;border-top-color:#d34a28}
+.v3 .coral::after{right:-13px;border-left-color:#d34a28;border-bottom-color:#d34a28}
+.v3 .teal{background:linear-gradient(#57c9b4,#2ea88f)} .v3 .teal::before{left:-13px;border-right-color:#1f7d68;border-top-color:#1f7d68}
+.v3 .teal::after{right:-13px;border-left-color:#1f7d68;border-bottom-color:#1f7d68}
+.v3 .gold{background:linear-gradient(#f7bf4d,#e59a1f);color:#6b430a} .v3 .gold::before{left:-13px;border-right-color:#b97a12;border-top-color:#b97a12}
+.v3 .gold::after{right:-13px;border-left-color:#b97a12;border-bottom-color:#b97a12}
+.v3 .num{font-size:17px}
+/* ---------- V4 wooden signs ---------- */
+.v4 .st{position:relative;display:flex;align-items:center;gap:6px;color:#fff7e6;font-weight:800;
+  background:linear-gradient(#b07a3f,#96581f);border:3px solid #6e3f12;border-radius:12px;
+  padding:6px 13px;box-shadow:inset 0 2px 0 rgba(255,220,160,.5), 0 3px 0 rgba(60,30,0,.3);font-size:15px;
+  text-shadow:0 1px 2px rgba(60,30,0,.6)}
+.v4 .st::before,.v4 .st::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffe1a0,#9c6a24);top:5px}
+.v4 .st::before{left:5px}.v4 .st::after{right:5px}
+.v4 small{font-size:9.5px;letter-spacing:1.2px;color:#ffd9a0}
+.v4 .num{font-size:17px}
+/* ---------- V5 stitched storybook ---------- */
+.v5 .st{display:flex;align-items:center;gap:7px;background:#fffaf0;border-radius:22px;
+  padding:7px 14px 7px 9px;border:2.5px solid #b9834a;outline:2px dashed #d9b078;outline-offset:-6px;
+  box-shadow:0 3px 0 rgba(90,50,10,.22)}
+.v5 .ic{font-size:19px}
+.v5 small{display:block;font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:#b08d57;line-height:1}
+.v5 .num{font-size:18px;color:#6d4423;line-height:1.05}
+</style></head><body>
+<h1>HOME STATS — 5 CUTE STYLES</h1>
+<p class="sub">BEST · Watermelon · Achievements — jo number pasand aye, wahi game mein lagega</p>
+
+<div class="opt v1"><h2>1 · MINI STORYBOOK CARDS (apke cards wali family)</h2>
+<div class="row">
+  <div class="st"><span class="ic gold">👑</span><span><small>BEST</small><b class="num">5097</b></span></div>
+  <div class="st"><span class="ic pink">🍉</span><span><small>MELONS</small><b class="num">3</b></span></div>
+  <div class="st"><span class="ic sky">🏅</span><span><small>TROPHIES</small><b class="num">6/9</b></span></div>
+</div></div>
+
+<div class="opt v2"><h2>2 · BUBBLE PILLS (rang baray gol nishan)</h2>
+<div class="row">
+  <div class="st"><span class="ic gold">👑</span><span><small>BEST</small><b class="num">5097</b></span></div>
+  <div class="st"><span class="ic pink">🍉</span><span><small>MELONS</small><b class="num">3</b></span></div>
+  <div class="st"><span class="ic sky">🏅</span><span><small>TROPHIES</small><b class="num">6/9</b></span></div>
+</div></div>
+
+<div class="opt v3"><h2>3 · RIBBON BADGES (prize wali fita)</h2>
+<div class="row">
+  <div class="st coral">👑 BEST <b class="num">5097</b></div>
+  <div class="st teal">🍉 <b class="num">3</b></div>
+  <div class="st gold">🏅 <b class="num">6/9</b></div>
+</div></div>
+
+<div class="opt v4"><h2>4 · WOODEN SIGNS (lakri ke takhtay)</h2>
+<div class="row">
+  <div class="st">👑 <span><small>BEST</small> <b class="num">5097</b></span></div>
+  <div class="st">🍉 <b class="num">3</b></div>
+  <div class="st">🏅 <b class="num">6/9</b></div>
+</div></div>
+
+<div class="opt v5"><h2>5 · STITCHED STORYBOOK (sila hua kinara)</h2>
+<div class="row">
+  <div class="st"><span class="ic">👑</span><span><small>BEST</small><b class="num">5097</b></span></div>
+  <div class="st"><span class="ic">🍉</span><span><small>MELONS</small><b class="num">3</b></span></div>
+  <div class="st"><span class="ic">🏅</span><span><small>TROPHIES</small><b class="num">6/9</b></span></div>
+</div></div>
+</body></html>

@@ -1,0 +1,133 @@
+# ============================================================ FRUIT MERGE
+# Cloud Android build — builds the signed Play Store AAB on GitHub's servers,
+# so you DON'T need Android Studio or the Android SDK on your own computer.
+#
+# How to use:
+#   1. Push this project to a GitHub repository.
+#   2. Add your keystore secrets (see CLOUD-BUILD.md):
+#        KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
+#      The workflow FAILS if any signing secret is missing; unsigned artifacts
+#      are never uploaded by this release workflow.
+#   3. GitHub → Actions tab → "Build Android AAB" → Run workflow.
+#   4. When it finishes (green), open the run → Artifacts → download
+#      "fruitmerge-aab" → inside is app-release.aab, ready for Play Console.
+name: Build Android AAB
+
+on:
+  workflow_dispatch:            # the manual "Run workflow" button
+  push:
+    branches: [ main ]          # also auto-build when you push to main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest      # GitHub's Linux machine (Java + Android SDK ready)
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run game regression suite
+        run: npm run check
+
+      - name: Sync web assets into the Android project
+        run: npx cap sync android
+
+      - name: Audit Android package identity and synced runtime assets
+        run: python3 scripts/audit_release.py
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install SDK platform 36 (required by Play since Aug 2026)
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+
+      - name: Restore required signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "❌ All four Play signing secrets are required; refusing to build or upload an unsigned AAB."
+            exit 1
+          fi
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            # Be forgiving about how the secret was pasted: strip a copied
+            # "KEYSTORE_BASE64=" prefix plus every space / tab / CR / newline
+            # (Windows Notepad adds CRs) before decoding.
+            printf '%s' "$KEYSTORE_BASE64" \
+              | sed 's/^KEYSTORE_BASE64=//' \
+              | tr -d ' \r\n\t' \
+              | base64 -d > android/app/release.keystore || {
+                echo "❌ KEYSTORE_BASE64 could not be decoded."
+                echo "Re-add that secret: everything AFTER 'KEYSTORE_BASE64=' in SECRETS.txt, the FULL single line, nothing else."
+                exit 1
+              }
+            SIZE=$(stat -c%s android/app/release.keystore)
+            echo "Keystore restored: $SIZE bytes."
+            if [ "$SIZE" -lt 1000 ]; then
+              echo "❌ Keystore looks truncated -- the secret was probably not copied in full."
+              exit 1
+            fi
+            keytool -list -keystore android/app/release.keystore \
+              -storepass "$KEYSTORE_PASSWORD" \
+              -alias "$KEY_ALIAS" >/dev/null 2>&1 || {
+                echo "❌ Keystore opened, but KEYSTORE_PASSWORD / KEY_ALIAS do not match it."
+                echo "Re-add those two secrets exactly as written in SECRETS.txt."
+                exit 1
+              }
+            echo "✅ Keystore + passwords verified."
+            echo "FM_KEYSTORE_FILE=${{ github.workspace }}/android/app/release.keystore" >> "$GITHUB_ENV"
+            echo "FM_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "FM_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "FM_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "✅ Keystore found → building a SIGNED release AAB (Play-ready)."
+          fi
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build the AAB
+        working-directory: android
+        run: ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Verify signed AAB before upload
+        run: |
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          test -s "$AAB"
+          jarsigner -verify -verbose -certs "$AAB" > /tmp/aab-signature-check.txt 2>&1 || {
+            cat /tmp/aab-signature-check.txt
+            echo "❌ AAB signature verification failed."
+            exit 1
+          }
+          grep -qi "jar verified" /tmp/aab-signature-check.txt || {
+            cat /tmp/aab-signature-check.txt
+            echo "❌ JAR verifier did not confirm a signed AAB."
+            exit 1
+          }
+          echo "✅ AAB signature verified; artifact may be uploaded."
+
+      - name: Upload the AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: fruitmerge-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30

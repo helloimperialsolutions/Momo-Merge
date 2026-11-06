@@ -1538,6 +1538,21 @@ function initWorld(){
       }
       if(a.plugin.stage===b.plugin.stage&&!a.plugin.dead&&!b.plugin.dead){
         mergeQueue.push([a,b]);
+      } else if(!a.plugin.dead&&!b.plugin.dead){
+        /* Phase 2 juice: landing squash + dust poof (visual only -- physics is
+           never touched, plugin fields are render-only data). */
+        var va=a.velocity||{}, vb=b.velocity||{};
+        var ia=Math.abs(va.y||0), ib=Math.abs(vb.y||0), tgt=null;
+        if(ib>5.2){ b.plugin.landT=Date.now(); b.plugin.landP=Math.min(1,ib/13); tgt=b; }
+        if(ia>5.2){ a.plugin.landT=Date.now(); a.plugin.landP=Math.min(1,ia/13); tgt=a; }
+        if(tgt){
+          var cxp=(a.position.x+b.position.x)*0.5, cyp=(a.position.y+b.position.y)*0.5;
+          var cn=Math.min(4,2+Math.round(((tgt===a?ia:ib)-5.2)));
+          for(var di=0;di<cn;di++)
+            effects.parts.push({x:cxp+(Math.random()-0.5)*12,y:cyp,
+              vx:(Math.random()-0.5)*1.2,vy:-0.3-Math.random()*0.5,
+              c:"rgba(255,248,235,.9)",t:Date.now(),r:1.4+Math.random()*1.8});
+        }
       }
     });
   });
@@ -1715,15 +1730,16 @@ function drawEffects(){
   });
   effects.floats=effects.floats.filter(function(f){
     var age=(now-f.t)/900; if(age>1) return false;
-    var pop=1;
-    if(f.big){ pop=easeOutBack(Math.min(1,age/0.18)); if(pop<0.25) pop=0.25; }
+    var pop=easeOutBack(Math.min(1,age/0.2)); if(pop<0.3) pop=0.3;
+    if(pop>1.12) pop=1.12;   /* cap the springy overshoot for small floats */
     var fs=(f.big?27:17)*pop*(1-age*0.18);
     cx.font="800 "+fs.toFixed(1)+"px \"Baloo 2\",system-ui,sans-serif";
     cx.textAlign="center"; cx.globalAlpha=Math.min(1,(1-age)*1.6);
+    cx.save(); cx.translate(f.x,f.y-age*40); cx.rotate(Math.sin(age*9+f.x)*0.05);
     if(f.big){ cx.lineWidth=4; cx.strokeStyle="rgba(255,251,240,.9)";
-      cx.strokeText(f.txt,f.x,f.y-age*40); }
+      cx.strokeText(f.txt,0,0); }
     cx.fillStyle=f.c||"#5b3a2e";
-    cx.fillText(f.txt,f.x,f.y-age*40); cx.globalAlpha=1;
+    cx.fillText(f.txt,0,0); cx.restore(); cx.globalAlpha=1;
     return true;
   });
   effects.ghosts=effects.ghosts.filter(function(gh){
@@ -2186,8 +2202,21 @@ function draw(){
       /* Extrapolate by the leftover sub-step. A quarter-step at most, so it can
          never pull a fruit out of the box, but enough to remove the stutter. */
       var ix=b.position.x+b.velocity.x*physAlpha, iy=b.position.y+b.velocity.y*physAlpha;
-      var ps=popScale(b,Date.now());
-      drawFruit(ix,iy,b.circleRadius,b.plugin.stage,b.angle,ps?ps:Math.min(sc2,1.15),b);
+      var _bb=popScale(b,Date.now());
+      var base=(_bb&&typeof _bb==="object")?_bb:{x:Math.min(sc2,1.15),y:Math.min(sc2,1.15)};
+      /* velocity stretch: a fast-falling fruit stretches along the motion,
+         volume preserved -- classic Disney-style juice, draw-only. */
+      var spd=Math.abs(b.velocity.y)*0.85+Math.abs(b.velocity.x)*0.35;
+      var vs=(spd>6)? Math.min(0.12,(spd-6)*0.016) : 0;
+      var scS={x:base.x*(1-vs), y:base.y*(1+vs)};
+      /* landing squash: flatten right after impact, spring back within ~260ms */
+      if(b.plugin.landT){
+        var _lk=(Date.now()-b.plugin.landT)/260;
+        if(_lk>=1) b.plugin.landT=0;
+        else { var _lp2=b.plugin.landP*(1-_lk);
+          scS.x*=1+0.20*_lp2; scS.y*=1-0.26*_lp2; }
+      }
+      drawFruit(ix,iy,b.circleRadius,b.plugin.stage,b.angle,scS,b);
     }
     if(held===b){ cx.strokeStyle="#4aa8d8"; cx.lineWidth=3; cx.setLineDash([6,5]);
       cx.beginPath(); cx.arc(b.position.x,b.position.y,b.circleRadius+5,0,Math.PI*2); cx.stroke(); cx.setLineDash([]); }

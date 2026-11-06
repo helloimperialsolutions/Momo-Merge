@@ -6,8 +6,8 @@
   "scripts": {
     "start": "npx http-server www -p 8081 -c-1",
     "test": "node tests/harness.js",
-    "extract": "python3 scripts/extract.py",
-    "check": "python3 scripts/extract.py && node tests/harness.js",
+    "extract": "node scripts/check.js --extract-only",
+    "check": "node scripts/check.js",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "assets": "npx @capacitor/assets generate --android",

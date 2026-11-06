@@ -224,6 +224,13 @@ const winListeners = {};
 
 const store = {};
 const navRedirects = [];
+/* NET_CONFIG now ships live inside index.html (cloud save + leaderboard), so
+   the game's net code is no longer inert during tests -- lbSubmit() and
+   lbFetch() really reach netFetch(). The sandbox has no network and must never
+   touch one, so fetch here is a hermetic stub that records every call and
+   resolves with an empty dataset. A test that needs the failure path flips
+   sandbox.fetchShouldReject instead of asking for the real wire. */
+const netCalls = [];
 const localStorageStub = {
   getItem: (k) => (k in store ? store[k] : null),
   setItem: (k, v) => { store[k] = String(v); },
@@ -306,6 +313,17 @@ const sandbox = {
   },
   AudioContext: mkAudioCtx,
   webkitAudioContext: mkAudioCtx,
+  /* Hermetic fetch, reachable only because the game source now carries a live
+     NET_CONFIG. Recorded in netCalls so a later phase can assert on the wire
+     without connecting anywhere. Always resolves ok with an empty array --
+     Supabase REST selectors are arrays, so lbFetch gets a valid(ly empty)
+     board and the local fallback test keeps its own dedicated path. */
+  fetchShouldReject: false,
+  fetch: (url, opt) => {
+    netCalls.push({ url, opt, at: simT });
+    if (sandbox.fetchShouldReject) return Promise.reject(new Error("denied by stub"));
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+  },
   confirm: () => true,          // auto-accept the restart/home confirms
   alert: () => {},
   /* The rename button asks via prompt(). Tests set promptAnswer to drive it --

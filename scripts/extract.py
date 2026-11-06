@@ -30,6 +30,18 @@ if len(blocks) != 2:
 
 matter, game = blocks
 
+# Mask the build's NET_CONFIG in the test copies. index.html now ships the
+# LIVE backend url/key inline (cloud save + leaderboard), so the raw copy
+# would make netOn() true from boot and the guest-mode milestones would all
+# see a cloud this build does not have. Tests that exercise the net paths
+# configure their own endpoints via FM_DEBUG.setNet(), so every phase stays
+# hermetic and readable whatever the shipped config happens to be.
+game, n_masked = re.subn(r"NET_CONFIG=\{[^{}]*\}", 'NET_CONFIG={ url:"", key:"" }', game)
+assert n_masked == 1, (
+    f"expected exactly 1 NET_CONFIG literal, found {n_masked} -- "
+    "extract.py's masking rule no longer matches the source" 
+)
+
 # sanity anchors -- fail loudly rather than writing junk into tests/
 assert "matter-js" in matter[:400], "block[0] does not look like matter.js"
 assert "FM_DEBUG" in game, "block[1] does not look like the game code"

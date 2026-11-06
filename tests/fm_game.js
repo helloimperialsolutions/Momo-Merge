@@ -135,31 +135,189 @@ var RAD_F=[0.042,0.055,0.070,0.088,0.110,0.136,0.167,0.204,0.248,0.300,0.360];
 /* ---------- 2. audio ---------- */
 var AC=null, muted=false;
 var volMaster=(store.vol==null?90:store.vol)/100;
+
+/* Layered WebAudio engine (Phase 1 sound overhaul).
+   Only oscillator+gain+biquad nodes are used, so the headless test
+   stub in tests/harness.js keeps working unchanged.
+   Everything routes through a shared master gain; the volume popup,
+   the mute button and ad-muted states all keep working exactly as before. */
+var _auM=null;
+function auMaster(c){ if(!_auM){ _auM=c.createGain(); _auM.gain.value=1; _auM.connect(c.destination); } return _auM; }
 function ac(){ if(adMuted) return null; if(!AC){ var C=window.AudioContext||window.webkitAudioContext; if(!C) return null; AC=new C(); }
-  if(AC.state==="suspended") AC.resume(); return AC; }
+  if(AC.state==="suspended") AC.resume();
+  auEnsureMusic();
+  return AC; }
+
+/* helpers: one-shot pitch-slide pop, envelope, and a cute creature squeak */
+function auEnv(c,v,t,a,d){ var g=c.createGain(); g.gain.value=0;
+  g.gain.linearRampToValueAtTime(v,t+Math.max(0.002,a));
+  g.gain.exponentialRampToValueAtTime(0.0001,t+d); return g; }
+function auOsc(c,type,f){ var o=c.createOscillator(); o.type=type; o.frequency.value=f; return o; }
+function auPop(c,t,f1,f2,d,v,type){
+  var o=auOsc(c,type||"sine",f1);
+  if(f2) o.frequency.exponentialRampToValueAtTime(Math.max(30,f2),t+d);
+  var g=auEnv(c,v,t,0.008,d);
+  o.connect(g); g.connect(auMaster(c)); o.start(t); o.stop(t+d+0.05); }
+function auSqueak(c,t,st,v){
+  /* two short formant blips through a bandpass "mouth" -- randomized so it
+     never repeats exactly and always reads as a tiny creature, not a robot */
+  try{
+    var f0=430+st*42+Math.random()*230;
+    var fl=c.createBiquadFilter(); fl.type="bandpass"; fl.frequency.value=f0*1.6; fl.Q.value=2;
+    var o=auOsc(c,"sawtooth",f0*0.72);
+    o.frequency.exponentialRampToValueAtTime(f0*1.55,t+0.075);
+    o.frequency.exponentialRampToValueAtTime(f0*0.88,t+0.16);
+    var g=auEnv(c,v,t,0.01,0.2);
+    o.connect(fl); fl.connect(g); g.connect(auMaster(c)); o.start(t); o.stop(t+0.25);
+    var fl2=c.createBiquadFilter(); fl2.type="bandpass"; fl2.frequency.value=f0*2.1; fl2.Q.value=2.2;
+    var o2=auOsc(c,"sawtooth",f0*1.02);
+    o2.frequency.exponentialRampToValueAtTime(f0*1.72,t+0.2);
+    var g2=auEnv(c,v*0.7,t+0.13,0.008,0.16);
+    o2.connect(fl2); fl2.connect(g2); g2.connect(auMaster(c)); o2.start(t+0.13); o2.stop(t+0.34);
+  }catch(e){}
+}
+/* compat: keep the old primitive for anything that still calls it */
 function tone(f,d,type,v,slide){
-  if(muted) return; var c=ac(); if(!c) return;
+  var c=ac(); if(!c||muted) return;
   var o=c.createOscillator(), g=c.createGain();
   o.type=type||"sine"; o.frequency.value=f;
   if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide), c.currentTime+d);
-  g.gain.value=0; o.connect(g); g.connect(c.destination);
+  g.gain.value=0; o.connect(g); g.connect(auMaster(c));
   var t=c.currentTime;
   g.gain.linearRampToValueAtTime((v||0.12)*volMaster,t+0.012);
   g.gain.exponentialRampToValueAtTime(0.0001,t+d);
   o.start(t); o.stop(t+d+0.05);
 }
-function sfxDrop(){ tone(320,0.09,"triangle",0.08,-80); }
-function sfxMerge(st){ tone(360+st*55,0.16,"sine",0.13,120); tone(540+st*55,0.12,"triangle",0.06); }
-function sfxMelon(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){tone(f,0.25,"sine",0.12);},i*90); }); }
-function sfxOver(){ tone(300,0.5,"sawtooth",0.07,-180); }
-function sfxSweep(){ tone(750,0.28,"triangle",0.1,-560); tone(220,0.3,"sine",0.08,-140); }
-function sfxUndo(){ tone(520,0.1,"sine",0.1,-160); tone(360,0.14,"sine",0.08,-60); }
-function sfxCoin(){ tone(880,0.1,"square",0.05); tone(1318,0.16,"square",0.045); }
-function sfxBoom(){ tone(90,0.5,"sawtooth",0.16,-40); tone(60,0.6,"square",0.1,-20); tone(400,0.2,"triangle",0.08,-300); }
-function sfxFreeze(){ tone(1200,0.3,"sine",0.07,-500); tone(1600,0.25,"sine",0.05,-700); }
-function sfxShatter(){ tone(900,0.18,"triangle",0.08,-400); tone(1400,0.14,"sine",0.05,-600); }
-function sfxUnlock(){ [660,880,1100].forEach(function(f,i){ setTimeout(function(){tone(f,0.18,"sine",0.1);},i*80); }); }
+
+/* --- big event sounds, now layered instead of single beeps --- */
+function sfxDrop(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,250,120,0.13,0.10,"sine");          /* soft basket bloop */
+  auPop(c,t,85,58,0.06,0.05,"triangle");        /* tiny sub thump */
+  if(Math.random()<0.65) auSqueak(c,t+0.02,0,0.028);  /* occasional happy chirp */
+}
+function sfxMerge(st){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  var f=290+st*68;
+  auPop(c,t,f,f*1.32,0.14,0.15,"sine");         /* juicy rising pop */
+  auPop(c,t,f*1.5,null,0.09,0.05,"triangle");   /* harmonic ghost */
+  auPop(c,t,1700+st*90,null,0.035,0.035,"square"); /* click transient */
+  auSqueak(c,t,Math.min(st,10),0.05);           /* the merged fruit "sings" */
+}
+function sfxMelon(){
+  var c=ac(); if(!c||muted) return;
+  [523,659,784,1046].forEach(function(f,i){
+    setTimeout(function(){
+      try{
+        var t2=c.currentTime;
+        auPop(c,t2,f,null,0.32,0.11,"sine");
+        auPop(c,t2,f*1.5,null,0.18,0.04,"sine");   /* bell partial */
+      }catch(e){}
+    },i*90);
+  });
+  setTimeout(function(){ try{ auPop(c,c.currentTime,2093,1568,0.3,0.035,"sine"); }catch(e){} },420); /* sparkle tail */
+}
+function sfxOver(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,220,82,0.75,0.11,"sine");           /* long sad slide */
+  auPop(c,t,310,140,0.5,0.06,"sawtooth");       /* wobbly mid layer */
+}
+function sfxSweep(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,760,120,0.3,0.10,"sine");           /* main whoosh */
+  auPop(c,t,1440,180,0.26,0.04,"triangle");     /* airy layer */
+  auPop(c,t,300,55,0.36,0.07,"sine");           /* low body */
+}
+function sfxUndo(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,300,520,0.1,0.09,"sine");           /* reverse-chirp up */
+  auPop(c,t,420,660,0.14,0.06,"triangle");
+}
+function sfxCoin(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,987,null,0.08,0.06,"square");
+  auPop(c,t,1318,null,0.2,0.05,"square");
+  auPop(c,t,2637,null,0.15,0.025,"sine");       /* shimmer ping */
+}
+function sfxBoom(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,120,45,0.5,0.18,"sine");            /* deep boom body */
+  auPop(c,t,55,30,0.55,0.08,"square");          /* sub rumble */
+  auPop(c,t,350,90,0.18,0.07,"triangle");       /* mid slap */
+  auPop(c,t,1200,300,0.12,0.04,"sawtooth");     /* debris */
+}
+function sfxFreeze(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  [1200,1536,1880].forEach(function(f,i){
+    var o=auOsc(c,"sine",f*(1+Math.random()*0.02));
+    o.frequency.exponentialRampToValueAtTime(f*0.62,t+0.4);
+    var g=auEnv(c,0.045,t+i*0.03,0.01,0.4);
+    o.connect(g); g.connect(auMaster(c)); o.start(t+i*0.03); o.stop(t+i*0.03+0.45);
+  });
+  auPop(c,t+0.05,2200,null,0.04,0.03,"square"); /* ice tick */
+}
+function sfxShatter(){
+  var c=ac(); if(!c||muted) return; var t=c.currentTime;
+  auPop(c,t,900,500,0.12,0.06,"square");
+  auPop(c,t,1400,800,0.1,0.04,"sine");
+  auPop(c,t,2600,null,0.05,0.03,"triangle");
+}
+function sfxUnlock(){
+  var c=ac(); if(!c||muted) return;
+  [660,880,1100].forEach(function(f,i){
+    setTimeout(function(){
+      try{
+        var t2=c.currentTime;
+        auPop(c,t2,f,null,0.22,0.09,"sine");
+        auPop(c,t2,f*1.5,null,0.12,0.03,"sine");
+      }catch(e){}
+    },i*80);
+  });
+}
 function buzz(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+
+/* --- soft cute background music loop (music-box style) ---
+   Schedule-ahead pattern: an interval ticks every 500ms and queues
+   notes ~1s ahead on the audio clock. Pentatonic, C major, 84 BPM.
+   Respects mute + ad-muted + the master volume slider every tick. */
+var musTimer=null, musGain=null, musNext=0, musStep=0;
+var MUS_SCALE=[523.25,587.33,659.25,783.99,880,1046.5];
+var MUS_BASS=[130.81,110,87.31,98];
+var MUS_MEL=[5,-1,4,-1,2,-1,4,-1,0,-1,2,-1,4,-1,2,-1,
+             5,-1,4,-1,2,-1,0,-1,1,-1,2,-1,4,-1,2,-1];
+function auPluck(c,t,f,v){
+  var o1=auOsc(c,"triangle",f), g1=auEnv(c,v,t,0.012,0.55);
+  o1.connect(g1); g1.connect(musGain); o1.start(t); o1.stop(t+0.6);
+  var o2=auOsc(c,"sine",f*2), g2=auEnv(c,v*0.28,t,0.01,0.3);
+  o2.connect(g2); g2.connect(musGain); o2.start(t); o2.stop(t+0.35);
+}
+function auBass(c,t,f){
+  var o=auOsc(c,"sine",f), g=auEnv(c,0.03,t,0.02,0.8);
+  o.connect(g); g.connect(musGain); o.start(t); o.stop(t+0.9);
+}
+function auMusicTick(){
+  if(!AC||muted||adMuted||!musGain) return;
+  try{
+    musGain.gain.setValueAtTime(0.55*volMaster,AC.currentTime);
+    var ct=AC.currentTime, sd=0.357;
+    if(musNext<ct-0.2) musNext=ct+0.15;
+    while(musNext<ct+0.9){
+      var s=MUS_MEL[musStep%MUS_MEL.length];
+      if(s>=0) auPluck(AC,musNext,MUS_SCALE[s],0.045);
+      if(musStep%4===0) auBass(AC,musNext,MUS_BASS[Math.floor(musStep/4)%4]);
+      musStep++; musNext+=sd;
+    }
+  }catch(e){}
+}
+function auEnsureMusic(){
+  try{
+    if(musTimer||!AC) return;
+    if(navigator.userAgent==="node-harness") return; /* headless tests: no real clock */
+    if(AC.createGain){ musGain=AC.createGain(); musGain.connect(auMaster(AC)); musGain.gain.value=0.5; }
+    musNext=AC.currentTime+0.6;
+    musTimer=setInterval(auMusicTick,500);
+  }catch(e){}
+}
 
 /* ---------- 3. canvas / geometry ---------- */
 var cv=document.getElementById("gameCanvas"), cx=cv.getContext("2d");

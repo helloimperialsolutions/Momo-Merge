@@ -1082,6 +1082,14 @@ function draw(){
     else drawFruit(ax,g.aimY,r0,cur.st,0,canDrop?1:0.85,null,cur.sp===2);
     cx.globalAlpha=1;
   }
+  // soft contact shadows first, so sprites render on top (Phase 3 depth pass)
+  fruits.forEach(function(b){
+    if(b.plugin.sp===1) return;
+    var shx=b.position.x, shy=b.position.y+b.circleRadius*0.9, sr=b.circleRadius*0.95;
+    var sg=cx.createRadialGradient(shx,shy,sr*0.22,shx,shy,sr);
+    sg.addColorStop(0,"rgba(70,42,22,.42)"); sg.addColorStop(1,"rgba(70,42,22,0)");
+    cx.fillStyle=sg; cx.beginPath(); cx.ellipse(shx,shy,sr,sr*0.52,0,0,Math.PI*2); cx.fill();
+  });
   // fruits
   fruits.forEach(function(b){
     var age=Date.now()-b.plugin.spawnT;
@@ -1141,7 +1149,16 @@ function draw(){
   drawPills();
   drawStrip();
   cx.restore();
+  /* warm cohesive vignette (Phase 3): ties the canvas art into the CSS cream
+     palette, screen-space so screen-shake never moves it, cached by size. */
+  if(_vigW!==W||!_vigG){
+    _vigW=W; _vigG=cx.createRadialGradient(W/2,H*0.46,Math.min(W,H)*0.4,W/2,H*0.54,Math.max(W,H)*0.8);
+    _vigG.addColorStop(0,"rgba(255,236,204,0)"); _vigG.addColorStop(0.72,"rgba(104,60,26,0)");
+    _vigG.addColorStop(1,"rgba(86,42,16,0.15)");
+  }
+  cx.fillStyle=_vigG; cx.fillRect(0,0,W,H);
 }
+var _vigW=-1,_vigG=null;
 function drawPills(){
   if(state!=="play") return;
   var y=geo.boxY+16;

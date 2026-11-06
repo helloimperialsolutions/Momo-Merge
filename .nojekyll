@@ -1,0 +1,4 @@
+# This site is plain static HTML (no Jekyll tricks, no Liquid templating,
+# no special directories). Telling Pages to skip the Jekyll build removes an
+# entire failure class from deploys -- pages-build-deployment used to fail
+# even though every file was valid static HTML.

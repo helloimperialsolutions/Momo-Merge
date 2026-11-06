@@ -296,7 +296,7 @@ function auBass(c,t,f){
   o.connect(g); g.connect(musGain); o.start(t); o.stop(t+0.9);
 }
 function auMusicTick(){
-  if(!AC||muted||adMuted||!musGain) return;
+  if(!AC||muted||adMuted||document.hidden||!musGain) return;
   try{
     musGain.gain.setValueAtTime(0.55*volMaster,AC.currentTime);
     var ct=AC.currentTime, sd=0.357;
@@ -309,6 +309,31 @@ function auMusicTick(){
     }
   }catch(e){}
 }
+/* pause/resume all audio with the app/tab lifecycle:
+   background (minimized browser / home-screened app) -> suspend the whole
+   AudioContext, resume on return. Ends the leak where music kept playing
+   while the app was not visible. visibilitychange covers web browsers;
+   on the Android WebView the Capacitor app-state plugin is the reliable signal. */
+document.addEventListener("visibilitychange",function(){
+  try{
+    if(!AC) return;
+    if(document.hidden){ if(AC.state==="running") AC.suspend(); }
+    else if(AC.state==="suspended") AC.resume();
+  }catch(e){}
+});
+try{
+  var _auCapApp=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()
+    &&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+  if(_auCapApp&&typeof _auCapApp.addListener==="function"){
+    _auCapApp.addListener("appStateChange",function(s){
+      try{
+        if(!AC) return;
+        if(!s.isActive&&AC.state==="running") AC.suspend();
+        else if(s.isActive&&AC.state==="suspended") AC.resume();
+      }catch(e){}
+    });
+  }
+}catch(e){}
 function auEnsureMusic(){
   try{
     if(musTimer||!AC) return;

@@ -38,11 +38,11 @@
     // Plugin not installed -> do nothing, so detectHost() falls back to demo.
     if (!P || typeof P.prepareRewardVideoAd !== "function") return;
 
-    /* Google's official TEST rewarded unit by default, so a debug build shows
-       real (test) ads out of the box. Before a production release set your own
-       rewarded ad-unit id, e.g. in index.html:
+    /* Owner's real AdMob units (confirmed 6 Nov 2026) -- the rewarded unit
+       below was earlier mislabelled as Google's test id; it is the real one.
+       Production ids live here as defaults; index.html can still override:
            window.FM_ADMOB_REWARDED = "ca-app-pub-XXXX/YYYY";
-       (and put your real App ID in AndroidManifest.xml).                    */
+       (the matching App ID sits in AndroidManifest.xml -- already correct). */
     window.FM_ADMOB_REWARDED =
       window.FM_ADMOB_REWARDED || "ca-app-pub-5002697332409715/7199766849";
     /* Real Interstitial + Banner units (AdMob, 17 Oct 2026). */
@@ -72,11 +72,43 @@
       P.addListener("onRewardedVideoAdReward", function () { earned = true; });
     } catch (e) {}
 
+    /* --- UMP consent (GDPR/EEA) gate -------------------------------------
+       Google REQUIRES a consent flow for users in the EEA/UK. The plugin
+       exposes Google's UMP SDK: requestConsentInfo() fetches the consent
+       status from AdMob's message config (AdMob console → Privacy &
+       messaging), showConsentForm() shows it if a form is available.
+       Every ad call now fails closed: no consent, no ad request.            */
+    var consentDone = false;
+    function ensureConsent() {
+      if (consentDone) return Promise.resolve(true);
+      /* plugin without UMP support (old version) -> treat as consented, the
+         game must never break because the gate is missing */
+      if (typeof P.requestConsentInfo !== "function") { consentDone = true; return Promise.resolve(true); }
+      return ensureInit().then(function () {
+        return P.requestConsentInfo({ debugGeography: "DISABLED", tagForUnderAgeOfConsent: false });
+      }).then(function (info) {
+        if (info && info.canRequestAds) { consentDone = true; return true; }
+        if (info && info.isConsentFormAvailable && typeof P.showConsentForm === "function") {
+          return P.showConsentForm().then(function (i2) {
+            consentDone = !!(i2 && i2.canRequestAds);
+            return consentDone;
+          });
+        }
+        return false;
+      }).catch(function () { return false; });
+    }
+    function gate(fn) {
+      return ensureConsent().then(function (ok) {
+        if (!ok) return Promise.reject(new Error("admob: consent not granted / no consent form available"));
+        return fn();
+      });
+    }
+
     window.AdMob = {
       /* --- full-screen ad between games (game over) --- */
       prepareInterstitial: function (o) {
         var id = (o && o.adId) || window.FM_ADMOB_INTERSTITIAL;
-        return ensureInit().then(function () {
+        return gate(function () {
           return P.prepareInterstitial({ adId: id, isTesting: false });
         });
       },
@@ -86,8 +118,10 @@
       /* --- persistent bottom banner: reserve WebView space so the banner
              never covers the evolution strip / buttons, then reload layout --- */
       showBanner: function (o) {
-        var id = (o && o.adId) || window.FM_ADMOB_BANNER;
-        return ensureInit()
+        return ensureConsent().then(function (ok) {
+          if (!ok) return;
+          var id = (o && o.adId) || window.FM_ADMOB_BANNER;
+          return ensureInit()
           .then(function () {
             return P.showBanner({ adId: id, adSize: "ADAPTIVE_BANNER", position: "BOTTOM_CENTER", isTesting: false });
           })
@@ -106,13 +140,21 @@
               }, 400);
             } catch (e) {}
           });
+        });
       },
       hideBanner: function () {
         return ensureInit().then(function () { return P.hideBanner(); });
       },
+      /* future-proof hook: a "Privacy options" entry point (AdMob
+         "Privacy & messaging" config) can call this from game settings */
+      showPrivacyOptions: function () {
+        return ensureInit().then(function () {
+          if (typeof P.showPrivacyOptionsForm === "function") return P.showPrivacyOptionsForm();
+        });
+      },
       prepareRewardVideoAd: function (o) {
         var id = (o && o.adId) || window.FM_ADMOB_REWARDED;
-        return ensureInit().then(function () {
+        return gate(function () {
           return P.prepareRewardVideoAd({ adId: id });
         });
       },

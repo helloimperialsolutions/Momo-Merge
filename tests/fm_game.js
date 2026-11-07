@@ -612,7 +612,20 @@ function addParts(x,y,c,n){
     effects.parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.5,c:c,t:Date.now(),r:2+Math.random()*3}); }
 }
 function addFloat(x,y,txt,opt){ opt=opt||{};
-  effects.floats.push({x:x,y:y,txt:txt,t:Date.now(),c:opt.c||null,big:!!opt.big}); }
+  var now=Date.now(), stack=0;
+  /* One identical message at a time: a habit-tapped button used to pile
+     duplicate texts on the exact same canvas spot and read as one smear. A
+     same-text float younger than 1.2s refreshes in place. Two DIFFERENT
+     texts inside 300ms (combo + score, hint + failure) all deserve to be
+     seen -- so instead of stacking them at identical y, fresh ones stagger
+     upward by a line height. Never blank the older message, never smother. */
+  for(var i=effects.floats.length-1;i>=0;i--){
+    var f=effects.floats[i];
+    if(now-f.t<1200&&f.txt===txt){ f.t=now; f.x=x; f.y=y; return; }
+    if(now-f.t<300) stack++;
+  }
+  effects.floats.push({x:x,y:y-stack*26,txt:txt,t:now,c:opt.c||null,big:!!opt.big});
+}
 function easeOutBack(u){ var c=1.70158; u=u-1; return 1+(c+1)*u*u*u+c*u*u; }
 /* Squash-pop for a newborn merged fruit: squashed flat on arrival, elastic
    rebound tall, one small wobble, settled -- 400ms, all inside drawFruit's
@@ -1604,6 +1617,15 @@ function detectHost(){
   return "demo";
 }
 var HOST=detectHost();
+/* ============ TESTERS-PHASE AD SKIP (closed alpha) ========================
+   While the 12-tester / 14-day Play gate is running, testers get the FULL
+   game without any ad gate: every rewarded grab (powers, diamonds, continue)
+   pays out INSTANTLY, interstitials never fire, and no banner reserves space.
+   Set this to FALSE before the public production release -- ads come back
+   everywhere through this one switch. Bridge side: www/admob-bridge.js reads
+   window.FM_TESTERS_SKIP_ADS and never initialises the SDK while it is on. */
+window.FM_TESTERS_SKIP_ADS=true;
+function adsSkipped(){ return !!window.FM_TESTERS_SKIP_ADS; }
 
 /* Snapshot the state we came from. The game can legitimately be paused before
    an ad starts -- hidden tab (visibilitychange), or the volume popup -- and if
@@ -1713,6 +1735,9 @@ var interstitialShown=0, bannerShown=false;
 function interstitialDue(){ var g=store.games||0; return g>0 && ((g-1)%3===0); }
 function showInterstitial(done){
   done=done||function(){};
+  /* Testers phase: game-over interstitials never fire. The schedule keeps
+     counting (interstitialDue unharmed) so nothing drifts when ads return. */
+  if(adsSkipped()){ done(); return; }
   var finished=false;
   var settle=function(){ if(finished) return; finished=true; interstitialShown++; done(); };
   var host=detectHost();
@@ -1766,6 +1791,7 @@ function interstitialDemo(done){
   },800);
 }
 function initBanner(){
+  if(adsSkipped()) return;
   if(bannerShown) return;
   try{
     if(detectHost()!=="admob") return;
@@ -1776,6 +1802,9 @@ function initBanner(){
 }
 
 function requestReward(cb){
+  /* Testers phase: the reward is granted straight away -- no overlay, no
+     SDK, no extra toast. Exactly one code path pays out, as always. */
+  if(adsSkipped()){ cb(); return; }
   initBanner();
   HOST=detectHost();
   if(HOST==="crazygames")       return adCrazyGames(cb);
@@ -3553,6 +3582,8 @@ window.FM_DEBUG={
   midResume:function(){ refreshContinue(); return { btn: !document.getElementById("contBtn") ? null :
                           document.getElementById("contBtn").classList.contains("hide") }; },
   geoBox:function(){ return { boxX:geo.boxX, boxY:geo.boxY, boxW:geo.boxW, boxH:geo.boxH }; },
+  adRequest:function(cb){ return requestReward(cb); },
+  adSkip:function(){ return adsSkipped(); },
   /* Test hook: force a signed-in session so login-gated behaviour (rename,
      collect) can be exercised without a real OAuth round trip. */
   setTok:function(t){ authTok=t||null; if(store.profile) store.profile.guest=!t; refreshEcon(); },

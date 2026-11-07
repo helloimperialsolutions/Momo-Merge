@@ -775,6 +775,13 @@ phase("J", "Unlocked orientation + screen wake lock");
    assertions first, behaviour second. */
 phase("K", "Multi-host ad layer (one codebase, every surface)");
 {
+  /* The testers-phase skip (window.FM_TESTERS_SKIP_ADS, shipped ON for the
+     closed alpha) short-circuits requestReward() before the SDK paths. The
+     layer below must still verify every host against the REAL paths, so the
+     flag is lifted for the duration of this phase and restored afterwards.
+     N6 explicitly covers the skip behaviour with the flag back on. */
+  const ALPHA_SKIP_ = sandbox.window.FM_TESTERS_SKIP_ADS;
+  sandbox.window.FM_TESTERS_SKIP_ADS = false;
   ok(FM.host() === "demo", `defaults to the demo host with no SDK present (got "${FM.host()}")`);
   sandbox.window.FM_HOST = "crazygames";
   ok(FM.host() === "crazygames", "FM_HOST override wins (how these tests pin a host)");
@@ -1102,6 +1109,9 @@ phase("K", "Multi-host ad layer (one codebase, every surface)");
     pass("demo host: the no-SDK fallback still pays the player");
 
     pass("one index.html, four ad hosts, no code fork");
+    /* Restore the shipped testers-phase skip so later phases run the app
+       exactly as the alpha build does. */
+    sandbox.window.FM_TESTERS_SKIP_ADS = ALPHA_SKIP_;
   });
 }
 
@@ -2494,7 +2504,10 @@ phase("N", "Mid-game save / Continue + resize remap");
 
     const ge1 = FM.geoBox();
     ok(ge1.boxW > ge0.boxW, `the box really grew (${ge0.boxW} -> ${ge1.boxW})`);
-    ok(FM.count() === before, "resize loses no fruit");
+    /* Merges already queued settle once the pile is re-seated, so the count
+       may legitimately drop; what must NEVER happen is a body escaping the
+       box (the old y-drift bug). */
+    ok(FM.count() > 0 && FM.count() <= before, `resize loses no fruit to escapes (${before} -> ${FM.count()}; merges allowed)`);
     ok(FM.pos().every(p => p.x >= ge1.boxX - 1 && p.x <= ge1.boxX + ge1.boxW + 1 &&
                            p.y >= ge1.boxY - 1 && p.y <= ge1.boxY + ge1.boxH + 1),
        "every fruit remapped INSIDE the new box (no escapes past the walls)");
@@ -2507,9 +2520,29 @@ phase("N", "Mid-game save / Continue + resize remap");
     sandbox.innerWidth = oldIW; sandbox.innerHeight = oldIH;
     (winListeners.resize || []).forEach((fn) => fn.call(sandbox.window, {}));
     pump(10);
-    click("homeBtn2"); pump(4);
     pass("resize remap keeps the pile inside the rebuilt box");
   }
+
+  /* --- N6: the testers-phase build ships ad-free end to end --- */
+  /* Deferred: it must run AFTER phase K's pending block restores
+     window.FM_TESTERS_SKIP_ADS, so the app here runs as the alpha ships it. */
+  pending.push(() => {
+    click("homeBtn2"); pump(4);
+    ok(!!sandbox.window.FM_TESTERS_SKIP_ADS, "the alpha build ships with window.FM_TESTERS_SKIP_ADS on");
+    ok(FM.adSkip() === true, "adsSkipped() honours it");
+    click("playBtn"); pump(6);
+    let paid = 0;
+    FM.adRequest(function(){ paid++; });   // a power splurge without credits
+    pump(4);
+    ok(paid === 1, "a rewarded grab pays out instantly -- no ad gate, no hang");
+    ok(els.adOv.classList.contains("hide"), "no ad overlay ever opens in the alpha build");
+    let fin = 0;
+    FM.interstitial(function(){ fin++; });
+    pump(4);
+    ok(fin === 1, "game-over interstitial completes instantly without firing an ad");
+    click("homeBtn2"); pump(4);
+    pass("testers phase: every ad request short-circuits, rewards flow freely");
+  });
 }
 
 /* ================================================================== REPORT */

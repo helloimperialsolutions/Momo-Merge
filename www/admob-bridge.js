@@ -38,6 +38,14 @@
     // Plugin not installed -> do nothing, so detectHost() falls back to demo.
     if (!P || typeof P.prepareRewardVideoAd !== "function") return;
 
+    /* TESTERS PHASE: index.html sets window.FM_TESTERS_SKIP_ADS=true for the
+       closed-alpha build -- rewards are granted in-game with no ad sdk. The
+       bridge bows out BEFORE init/consent, so the UMP form and the AdMob SDK
+       never even wake up: nothing loads, nothing shows, nothing overlaps.
+       PRODUCTION: index.html flips the same flag to false; this file does not
+       need its own switch.                                                  */
+    if (window.FM_TESTERS_SKIP_ADS) return;
+
     /* Owner's real AdMob units (confirmed 6 Nov 2026) -- the rewarded unit
        below was earlier mislabelled as Google's test id; it is the real one.
        Production ids live here as defaults; index.html can still override:

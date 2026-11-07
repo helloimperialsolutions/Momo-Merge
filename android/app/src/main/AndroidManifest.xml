@@ -29,6 +29,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Supabase OAuth callback: after Google sign-in the browser is
+                 redirected here (BROWSABLE makes the scheme fireable from a
+                 browser tab; singleTask above means the running game is
+                 resumed rather than duplicated). @capacitor/app reports the
+                 URL to the game as appUrlOpen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.isstudios.momomerge" />
+            </intent-filter>
+
         </activity>
 
         <provider

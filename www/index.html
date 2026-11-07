@@ -3285,6 +3285,7 @@ function netOn(){ return !!(NET_CONFIG&&NET_CONFIG.url&&NET_CONFIG.key); }
    score. The player's own access token must be the Bearer; the anon key only
    ever goes in `apikey`. */
 var AUTH_TOK_KEY="fruitmerge.auth";
+var REFRESH_KEY="fruitmerge.refresh";
 var authTok="";
 function signedIn(){ return !!authTok; }
 function netHeaders(){
@@ -3296,28 +3297,50 @@ function netHeaders(){
      #access_token=...&expires_in=3600&refresh_token=...&type=signup
    Read it once at boot, persist it, then strip the hash so a reload or a
    shared URL never carries a live credential. */
-function captureAuthHash(){
+/* A token fragment looks the same wherever it arrives: in location.hash (web
+   flow) or at the end of an appUrlOpen URL (Android app). Parse once, apply
+   once -- no flow branches on where it came from. */
+function parseAuthFragment(frag){
   try{
-    var h=(window.location&&window.location.hash)||"";
-    if(h.indexOf("access_token=")===-1) return false;
-    var q={}, parts=h.replace(/^#/,"").split("&");
+    frag=String(frag||"");
+    if(frag.indexOf("access_token=")===-1) return null;
+    var q={}, parts=frag.replace(/^#/,"").split("&");
     for(var i=0;i<parts.length;i++){
       var kv=parts[i].split("=");
       if(kv[0]) q[kv[0]]=decodeURIComponent(kv[1]||"");
     }
-    if(!q.access_token) return false;
-    authTok=q.access_token;
-    try{ localStorage.setItem(AUTH_TOK_KEY,authTok); }catch(e){}
-    store.profile.guest=false;
-    if(!store.profile.id) store.profile.id=q.user_id||"";
-    save();
+    if(!q.access_token) return null;
+    return q;
+  }catch(e){ return null; }
+}
+function applyAuthParams(q){
+  authTok=q.access_token;
+  try{ localStorage.setItem(AUTH_TOK_KEY,authTok); }catch(e){}
+  /* Supabase access tokens live one hour (expires_in=3600). Without keeping
+     the refresh token, every player who came back the next day silently
+     degraded into a guest and lost cloud save + leaderboard. Store it next to
+     the access token; tryRefreshAuth() rotates both at boot. */
+  if(q.refresh_token){
+    try{ localStorage.setItem(REFRESH_KEY,q.refresh_token); }catch(e){}
+  }
+  store.profile.guest=false;
+  if(!store.profile.id) store.profile.id=q.user_id||"";
+  save();
+  /* This mutates state the UI depends on (signedIn, profile.guest), so it has
+     to repaint. Boot happens to call refreshEcon() afterwards, but relying on
+     that ordering would leave the invitation on screen for anyone signed in
+     through a path that does not go through boot. */
+  refreshSignIn(); refreshEcon();
+  return true;
+}
+function captureAuthHash(){
+  try{
+    var h=(window.location&&window.location.hash)||"";
+    var q=parseAuthFragment(h);
+    if(!q) return false;
+    applyAuthParams(q);
     if(window.history&&window.history.replaceState)
       window.history.replaceState(null,"",window.location.pathname+window.location.search);
-    /* This mutates state the UI depends on (signedIn, profile.guest), so it has
-       to repaint. Boot happens to call refreshEcon() afterwards, but relying on
-       that ordering would leave the invitation on screen for anyone signed in
-       through a path that does not go through boot. */
-    refreshSignIn(); refreshEcon();
     return true;
   }catch(e){ return false; }
 }
@@ -3329,6 +3352,78 @@ function loadAuthTok(){
 function clearAuthTok(){
   authTok="";
   try{ localStorage.removeItem(AUTH_TOK_KEY); }catch(e){}
+  try{ localStorage.removeItem(REFRESH_KEY); }catch(e){}
+}
+/* Expired tokens can't be detected offline: expires_in is known but the issue
+   time is not, so just ask Supabase for a fresh pair on boot, whenever a
+   refresh token exists. On success both tokens are rotated (Supabase keeps
+   rotating the refresh token, so the NEW one must be stored). On failure the
+   current token is kept -- it may still be perfectly valid, and a hiccup
+   should never log the player out. */
+function tryRefreshAuth(){
+  if(!netOn()||!authTok) return;
+  var rt="";
+  try{ rt=localStorage.getItem(REFRESH_KEY)||""; }catch(e){}
+  if(!rt) return;
+  netFetch("/auth/v1/token?grant_type=refresh_token",{ method:"POST",
+    body:JSON.stringify({ refresh_token:rt }) }).then(function(r){
+    if(!r||!r.access_token) return;
+    authTok=r.access_token;
+    try{ localStorage.setItem(AUTH_TOK_KEY,authTok); }catch(e){}
+    if(r.refresh_token){
+      try{ localStorage.setItem(REFRESH_KEY,r.refresh_token); }catch(e){}
+    }
+    store.profile.guest=false;
+    save();
+    refreshSignIn(); refreshEcon();
+  }).catch(function(){ /* keep the current token */ });
+}
+
+/* ------------------------------------------------------------ app callback --
+   On Android the whole OAuth dance happens in the SYSTEM browser (WebView
+   never navigates away from the game, so no reload and no lost state). When
+   Supabase finishes, it bounces the browser to
+
+       com.isstudios.momomerge://callback#access_token=...
+
+   The manifest's VIEW intent-filter catches that scheme, Android brings the
+   app back to the foreground and @capacitor/app reports it here as
+   appUrlOpen. The callback's "#..." fragment has the exact same shape the web
+   flow leaves in location.hash, so the token goes through parseAuthFragment +
+   applyAuthParams -- one code path, two transport modes. */
+var OAUTH_CALLBACK="com.isstudios.momomerge://callback";
+function handleAuthCallback(url){
+  try{
+    var u=String(url||"");
+    if(u.slice(0,OAUTH_CALLBACK.length)!==OAUTH_CALLBACK) return false;
+    var hi=u.indexOf("#");
+    if(hi===-1) return false;
+    var q=parseAuthFragment(u.slice(hi+1));
+    if(!q) return false;
+    applyAuthParams(q);
+    /* Best-effort only: on the web preview the callback CAN land on this live
+       page, and a live credential must never sit in a shareable address bar --
+       same reason captureAuthHash strips its hash. */
+    if(window.history&&window.history.replaceState)
+      window.history.replaceState(null,"",window.location.pathname+window.location.search);
+    diaToast("👤 "+profileName(),T("welcome"));
+    return true;
+  }catch(e){ return false; }
+}
+function initOAuthRedirect(){
+  try{
+    var C=window.Capacitor;
+    if(!(C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.App)) return;
+    C.Plugins.App.addListener("appUrlOpen",function(ev){
+      handleAuthCallback(ev&&ev.url);
+    });
+    /* Cold start: if Android killed the game while the player sat in the
+       browser, the callback arrives with the LAUNCH intent, not a newIntent.
+       getLaunchUrl hands us that URL once the listener above exists. */
+    var A=C.Plugins.App;
+    if(typeof A.getLaunchUrl==="function")
+      A.getLaunchUrl().then(function(r){ handleAuthCallback(r&&r.url); }).catch(function(){});
+  }catch(e){}
 }
 function netFetch(path,opt){
   opt=opt||{};
@@ -3357,6 +3452,10 @@ function econDefaults(){
 function econInit(){
   loadAuthTok();
   captureAuthHash();
+  /* A one-hour-old token looks identical to a fresh one, so the refresh is
+     asked for on every boot -- one POST, and a signed-in player stays
+     signed-in instead of silently rotting back into a guest. */
+  tryRefreshAuth();
   var d=econDefaults();
   for(var k in d){
     if(store[k]===undefined) store[k]=d[k];
@@ -3689,10 +3788,17 @@ function lbSubmit(){
 var Net={
   login:function(provider,cb){
     if(!netOn()){ cb(guestLogin()); return; }
-    /* Supabase hosted OAuth: redirects back with a token in the hash. */
+    /* Supabase hosted OAuth: redirects back with a token in the hash.
+       Web build -> back to this page's own URL.
+       Android app -> the flow finishes in the system browser, so it comes
+       back through the app's own scheme; Supabase must have that callback in
+       its Dashboard > Auth > URL Configuration > Redirect URLs allow-list. */
     if(provider==="google"){
+      var C=window.Capacitor;
+      var back=(C&&C.isNativePlatform&&C.isNativePlatform())? OAUTH_CALLBACK
+              : window.location.href.split("#")[0];
       window.location.href=NET_CONFIG.url+"/auth/v1/authorize?provider=google"+
-        "&redirect_to="+encodeURIComponent(window.location.href.split("#")[0]);
+        "&redirect_to="+encodeURIComponent(back);
       return;
     }
     cb(guestLogin());
@@ -4137,6 +4243,7 @@ function applyPlayBg(){
 initWorld();
 document.body.classList.add("inmenu");
 econInit();
+initOAuthRedirect();
 rollPeriod();
 wireEcon(); initBanner();
 

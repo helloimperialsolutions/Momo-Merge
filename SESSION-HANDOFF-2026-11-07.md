@@ -1,4 +1,7 @@
 # Momo Merge — Session Handoff (7 Nov 2026, evening)
+> ⚠️ **SUPERSEDED (8 Nov): ye doc ab sirf history/reference ke liye hai.**
+> **Naya session ke liye `SESSION-HANDOFF-2026-11-08.md` padho — wo MASTER hai**
+> (7 Nov ka pura record + 8 Nov raat ka sab kaam + agla plan, sab included).
 > **NEXT SESSION YEH PADHNA SAB SE PEHLE.** Ye doc pichle sessions ka poora record + agle session ka kaam hai.
 > Purane docs: `AUDIT-AND-STATUS.md` (source audit, abhi tak valid), `SETUP-GUIDE.md` (backend setup steps).
 

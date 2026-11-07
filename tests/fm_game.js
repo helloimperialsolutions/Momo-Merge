@@ -92,7 +92,9 @@ en:{
   lbShowing:"Showing {0} of {1}", owned:"Owned: {0}",
   bonus:"bonus", demoBuy:"Demo", demoOnly:"Demo only — no real purchase",
   welcome:"Welcome!", tabEarn:"Earn", tabShop:"Shop", tabRanks:"Ranks",
-  allTime:"All time", weekly:"Weekly", daily:"Daily"
+  allTime:"All time", weekly:"Weekly", daily:"Daily",
+  savedNote:"Progress saved", resumeHint:"Score {0} · {1} fruits waiting",
+  confirmOverwrite:"Starting a new game clears the saved board — continue?"
 }
 };
 /* English only. T() survives as the single copy source so strings stay in one
@@ -347,7 +349,7 @@ function auEnsureMusic(){
 /* ---------- 3. canvas / geometry ---------- */
 var cv=document.getElementById("gameCanvas"), cx=cv.getContext("2d");
 var W=0,H=0,DPR=1;
-var geo={boxX:0,boxY:0,boxW:0,boxH:0,wall:14,lineY:0,aimY:0,_oldBoxX:0,
+var geo={boxX:0,boxY:0,boxW:0,boxH:0,wall:14,lineY:0,aimY:0,_oldBoxX:0,_oldBoxY:0,
   basketX:0,basketY:0,basketScale:1,stripY:0};
 /* U-shaped PHYSICS (L/R/B only), with the uploaded photo intact.
    The original braided top rim remains visually in the background,
@@ -394,7 +396,7 @@ function makeWalls(){
   Composite.add(world,[walls.L,walls.R,walls.B]);
 }
 function layout(){
-  var oldW=geo.boxW;
+  var oldW=geo.boxW, oldH=geo.boxH;
   W=cv.clientWidth; H=cv.clientHeight;
   DPR=Math.min(window.devicePixelRatio||1,2);
   cv.width=W*DPR; cv.height=H*DPR; cx.setTransform(DPR,0,0,DPR,0,0);
@@ -416,15 +418,30 @@ function layout(){
   geo.aimY=geo.boxY-8;
   if(world){
     makeWalls();
-    if(oldW>0 && Math.abs(oldW-geo.boxW)>1){
-      var s=geo.boxW/oldW;
+    /* Uniform remap on ANY geometry change (window resize / rotation / zoom).
+       The old code rescaled x around the box but left y in raw pixels, so a
+       frame-height change left the pile floating outside the rebuilt floor --
+       fruits "fell out of the basket" and the score froze mid-update. Now
+       positions AND velocities map onto the new box on both axes, every fruit
+       is clamped inside it, and no body can ever start a frame stranded
+       beyond a wall (tunnelling-safe, per audit rule 1: the fixed step and
+       all physics constants stay untouched -- only geometry adapts). */
+    if(oldW>0&&(Math.abs(geo.boxW-oldW)>0.5||Math.abs(geo.boxH-oldH)>0.5)){
+      var s=Math.max(0.05,geo.boxW/oldW);
       fruits.forEach(function(b){
-        Body.scale(b,s,s);
-        Body.setPosition(b,{x:geo.boxX+(b.position.x-geo._oldBoxX)*s, y:b.position.y});
+        var nx=geo.boxX+(b.position.x-geo._oldBoxX)*s;
+        var ny=geo.boxY+(b.position.y-geo._oldBoxY)*s;
+        if(Math.abs(s-1)>0.001) Body.scale(b,s,s);
+        var r0=b.circleRadius||0;
+        nx=Math.max(geo.boxX+r0+2,Math.min(geo.boxX+geo.boxW-r0-2,nx));
+        ny=Math.max(geo.boxY+r0+2,Math.min(geo.boxY+geo.boxH-r0-2,ny));
+        Body.setPosition(b,{x:nx,y:ny});
+        Body.setVelocity(b,{x:(b.velocity.x||0)*s,y:(b.velocity.y||0)*s});
       });
+      aimX=clampAim(aimX);
     }
   }
-  geo._oldBoxX=geo.boxX;
+  geo._oldBoxX=geo.boxX; geo._oldBoxY=geo.boxY;
   buildBasket();
   rebuildCritters();
   if(aimX===0) aimX=W/2;
@@ -1263,6 +1280,8 @@ function pickObj(){
   return {st:Math.floor(Math.random()*5),sp:0};
 }
 function newRound(){
+  /* A fresh game supersedes whatever board was saved for Continue. */
+  clearSnapshot();
   portalGameplayStart();
   fruits.slice().forEach(removeFruit);
   mergeQueue=[]; pendingBooms=[]; rainQueue=[];
@@ -1279,6 +1298,120 @@ function newRound(){
   lastIdleBuddy=Date.now(); lastCheerMilestone=0;
   reactCritters("start","Let's play!","🧺",1400);
   updateHud(); updatePowerUI(); drawNext();
+  /* The old snapshot is gone -- the home screen must not keep selling it. */
+  refreshContinue();
+}
+
+/* ---------- 10b. mid-game save + Continue ---------- */
+/* A round is a session, not a commitment: players get called away, get bored
+   or get stuck, and losing a 40-minute board to that is the #1 demotivator
+   for a score-driven audience. Any live board is snapshotted when its owner
+   leaves it (Home, or the app being backgrounded/killed), and the home screen
+   grows a CONTINUE button that rebuilds it. Deliberately LOCAL ONLY: the
+   board is a welcome-back nudge, not an account -- diamonds, best score and
+   identity already sync through the cloud (store). Rebuilding the physics
+   board cross-device from stale sheet positions would open a can of bugs
+   (box geometry differs per device) for very little extra value.
+
+   What is deliberately NOT saved:
+     lastDrop            -- a snapshot predates the "drop in flight" moment; an
+                            undo that rewound a stale drop would fight audit
+                            rule 4 (the lastDrop invariant). Undo simply says
+                            "nothing to undo" until the next real drop.
+     frozenUntil/goldenUntil/comboCount -- timer-based on Date.now(), so they
+                            cannot survive a wall-clock gap. The board resets
+                            to calm instead of handing out unearned gold.
+     fuse timers         -- restored bombs re-arm on first contact, fresh. */
+var MID_KEY="fruitmerge.midgame";
+function snapshotBoard(){
+  try{
+    if(state!=="play"&&state!=="pause") return false;
+    var finfo=[];
+    fruits.forEach(function(b){
+      if(!b.plugin||b.plugin.dead) return;
+      if(b.plugin.sp<0||b.plugin.sp>2) return;
+      /* Positions stored relative to the box: if the frame that restores the
+         save is a different size (rotation, another window), the mapping
+         still lands the pile inside the basket instead of in the void. */
+      finfo.push({ st:b.plugin.stage, sp:b.plugin.sp,
+                   g:b.plugin.gold?1:0, rs:b.plugin.rScale||1,
+                   x:(b.position.x-geo.boxX)/geo.boxW,
+                   y:(b.position.y-geo.boxY)/geo.boxH });
+    });
+    if(!finfo.length) return false;
+    var snap={ v:1, t:Date.now(), score:Math.floor(score)||0, drops:totalDrops||0,
+               uc:usedContinue?1:0, pw:Object.assign({},powers),
+               pb:(pendingBoost||[]).slice(),
+               q:[{st:cur.st,sp:cur.sp},{st:nxt.st,sp:nxt.sp},
+                  {st:q2.st,sp:q2.sp},{st:q3.st,sp:q3.sp}],
+               f:finfo };
+    try{ localStorage.setItem(MID_KEY,JSON.stringify(snap)); }catch(e){}
+    return true;
+  }catch(e){ return false; }
+}
+function clearSnapshot(){
+  try{ localStorage.removeItem(MID_KEY); }catch(e){}
+}
+function readSnapshot(){
+  try{
+    var s=JSON.parse(localStorage.getItem(MID_KEY)||"");
+    if(!s||s.v!==1) return null;
+    /* Stale or tampered saves reset gracefully, never crash the home screen. */
+    if(!Array.isArray(s.q)||s.q.length!==4) return null;
+    if(!Array.isArray(s.f)||!s.f.length||s.f.length>250) return null;
+    var F=curF().length;
+    for(var i=0;i<s.f.length;i++){
+      var o=s.f[i];
+      if(!o||!(o.st>=0&&o.st<F)) return null;
+      if(!(o.sp>=0&&o.sp<=2)) return null;
+      if(!(o.rs>0&&o.rs<=2)||!isFinite(o.x)||!isFinite(o.y)) return null;
+    }
+    if(!isFinite(s.score)||s.score<0||s.score>5e7) return null;
+    return s;
+  }catch(e){ return null; }
+}
+function continueGame(){
+  var s=readSnapshot();
+  if(!s){ refreshContinue(); return; }
+  portalGameplayStart();
+  fruits.slice().forEach(removeFruit);
+  mergeQueue=[]; pendingBooms=[]; rainQueue=[];
+  effects={rings:[],parts:[],floats:[],ghosts:[],confetti:[],banner:null};
+  sessionAch=[];
+  score=s.score||0; usedContinue=!!s.uc; totalDrops=s.drops||0;
+  powers=Object.assign({sweep:0,undo:0,freeze:0},s.pw&&typeof s.pw==="object"?s.pw:{});
+  /* pendingBoost rides along WITHOUT its newRound() replay: these are "next
+     game" gifts from the Lucky Box, so they must stay pending, not fire now. */
+  pendingBoost=(s.pb&&Array.isArray(s.pb))? s.pb.slice() : [];
+  popArmed=false; popJustFired=false; lastDrop=null; physAcc=0; physAlpha=0;
+  frozenUntil=0; held=null; goldenUntil=0; comboCount=0; lastMergeT=0;
+  cur=s.q[0]||pickObj(); nxt=s.q[1]||pickObj(); q2=s.q[2]||pickObj(); q3=s.q[3]||pickObj();
+  s.f.forEach(function(o){
+    var r0=radius(o.st)*(o.rs||1);
+    /* Clamp the relative position back inside the CURRENT box. */
+    var x=Math.max(geo.boxX+r0+3,Math.min(geo.boxX+geo.boxW-r0-3, geo.boxX+o.x*geo.boxW));
+    var y=Math.max(geo.boxY+r0+3,Math.min(geo.boxY+geo.boxH-r0-3, geo.boxY+o.y*geo.boxH));
+    var b=spawnFruit(o.st,x,y,{sp:o.sp,rScale:o.rs||1});
+    if(o.g) b.plugin.gold=true;
+  });
+  document.body.classList.remove("inmenu");
+  canDrop=true; overLineSince=0; overGraceUntil=Date.now()+1000;
+  state="play";
+  lastIdleBuddy=Date.now(); lastCheerMilestone=0;
+  updateHud(); updatePowerUI(); drawNext(); refreshStartChips();
+  requestWake();
+  reactCritters("start","Welcome back!","🧺",1600);
+}
+function refreshContinue(){
+  var btn=document.getElementById("contBtn");
+  var hint=document.getElementById("contHint");
+  if(!btn) return;
+  var s=(state==="menu")? readSnapshot() : null;
+  btn.classList.toggle("hide",!s);
+  if(hint){
+    hint.classList.toggle("hide",!s);
+    if(s) hint.textContent=T("resumeHint",{0:s.score,1:s.f.length});
+  }
 }
 function drop(){
   if(state!=="play"||!canDrop||frozen()||popArmed) return;
@@ -1312,6 +1445,8 @@ function startFinale(){
 }
 function finishGame(){
   portalGameplayStop();
+  /* The round just ended: its saved board (if any) has no future. */
+  clearSnapshot();
   state="over"; buzz([80,50,80]); updatePowerUI();
   rollPeriod();
   if(!store.dailyBest||store.dailyBest.d!==dayKey()||score>store.dailyBest.s){ store.dailyBest={d:dayKey(),s:score}; }
@@ -1782,7 +1917,7 @@ function setHomeMsg(t){
 }
 /* Every dynamic label goes through here, so a language switch repaints the
    whole UI in one call instead of leaving half the screen in the old language. */
-function refreshStartChips(){ refreshLabels(); }
+function refreshStartChips(){ refreshLabels(); refreshContinue(); }
 function refreshLabels(){
   var ac=document.getElementById("achCount"); if(ac) ac.textContent=achCount()+"/9";
   var hb=document.getElementById("homeBest"); if(hb) hb.textContent=store.best;
@@ -2059,6 +2194,14 @@ document.getElementById("playBtn").addEventListener("click",function(){
   ac(); document.getElementById("startOv").classList.add("hide"); sessionAch=[]; newRound();
   requestWake();
 });
+/* CONTINUE: rebuild the saved board raw (no ad, no reset) -- the round keeps
+   its original score and usedContinue state. Overwritten only by a new game. */
+document.getElementById("contBtn").addEventListener("click",function(){
+  ac();
+  if(!readSnapshot()) return;
+  document.getElementById("startOv").classList.add("hide");
+  continueGame();
+});
 document.getElementById("againBtn").addEventListener("click",function(){
   document.getElementById("overOv").classList.add("hide"); sessionAch=[]; newRound();
 });
@@ -2077,6 +2220,11 @@ document.getElementById("restartBtn").addEventListener("click",function(){
 function goHome(){
   portalGameplayStop();
   releaseWake();
+  /* Leaving a live round snapshots it first: this is the "user closed the app
+     for a break" moment, and the board must be waiting when they come back. */
+  if((state==="play"||state==="pause")&&(score>0||fruits.length)){
+    if(snapshotBoard()) diaToast("💾",T("savedNote"));
+  }
   state="menu"; held=null; frozenUntil=0; volOpen=false; pausedByVol=false; adPrevState=null;
   document.body.classList.add("inmenu");
   mergeQueue=[]; pendingBooms=[]; rainQueue=[];
@@ -2142,6 +2290,17 @@ document.getElementById("resumeBtn").addEventListener("click",function(){
   document.getElementById("pauseOv").classList.add("hide"); state="play"; updatePowerUI();
 });
 window.addEventListener("resize",function(){ layout(); applyHomeBg(); applyPlayBg(); });
+/* Auto-save checkpoint for the "closed the app" case. pagehide/visibilitychange
+   cover Android WebView both: backgrounding fires visibilitychange first, a
+   real kill then fires pagehide. goHome() is the explicit variant (it toasts);
+   these two are silent, so an OS-driven leave never greets the player with
+   feedback they did not ask for. */
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden&&(state==="play"||state==="pause")) snapshotBoard();
+});
+window.addEventListener("pagehide",function(){
+  if(state==="play"||state==="pause") snapshotBoard();
+});
 
 /* ---------- 13c. economy — diamonds, challenges, shop, profile ---------- */
 /* One currency (diamonds) feeds one shop, and both are earned by the same
@@ -3383,6 +3542,17 @@ window.FM_DEBUG={
   apikey:function(){ return netHeaders()["apikey"]; },
   capture:function(){ return captureAuthHash(); },
   clearTok:function(){ clearAuthTok(); },
+  /* Mid-game save/continue hooks (local snapshot, not cloud): the harness
+     drives the real snapshot/restore paths through these. */
+  midSnap:function(){ return snapshotBoard(); },
+  midHas:function(){ return !!(readSnapshot()); },
+  midScore:function(){ var s=readSnapshot(); return s? s.score : -1; },
+  midFruits:function(){ var s=readSnapshot(); return s? s.f.length : -1; },
+  midClear:function(){ clearSnapshot(); },
+  midRestore:function(){ try{ continueGame(); return state; }catch(e){ return "ERR:"+e.message; } },
+  midResume:function(){ refreshContinue(); return { btn: !document.getElementById("contBtn") ? null :
+                          document.getElementById("contBtn").classList.contains("hide") }; },
+  geoBox:function(){ return { boxX:geo.boxX, boxY:geo.boxY, boxW:geo.boxW, boxH:geo.boxH }; },
   /* Test hook: force a signed-in session so login-gated behaviour (rename,
      collect) can be exercised without a real OAuth round trip. */
   setTok:function(t){ authTok=t||null; if(store.profile) store.profile.guest=!t; refreshEcon(); },

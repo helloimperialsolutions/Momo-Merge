@@ -185,7 +185,7 @@ function mkAudioCtx() {
 /* Mirrors the ids in www/index.html. Regenerate with the check in
    WORKSPACE-NOTES. */
 const IDS = ("achBtn achClose achCount achFill achGrid achOv achSub adCount adDiaBtn adOv adSub adTitle " +
-  "againBtn app avGrid avatarClose avatarOv best bombB bombBtn chList continueBtn dailyBtn " +
+  "againBtn app avGrid avatarClose avatarOv best bombB bombBtn chList continueBtn contBtn contHint dailyBtn " +
   "confirmIco confirmMsg confirmNo confirmOv confirmTitle confirmYes diaBalCount diaClose " +
   "diaCount diaOv diaPill diaToast diaToastBig diaToastSmall endBonus " +
   "endTitle extraMsg finalBest finalScore freeBtn freezeB freezeBtn gameCanvas homeBest homeBg " +
@@ -2406,6 +2406,111 @@ phase("M", "Economy: diamonds, challenges, shop, profile, ranks");
     ok(PAGE_SRC.includes('var g=geo, T=60'), "Matter wall material/thickness setup stays unchanged");
     pass("basket: intact photo, cavity-mapped playfield, clear strip");
   }}
+
+/* ================================================================== PHASE N */
+phase("N", "Mid-game save / Continue + resize remap");
+{
+  click("homeBtn2"); pump(6);
+  ok(FM.state() === "menu", "starting N from the home screen");
+  FM.midClear();
+
+  /* --- N1: leaving a live board writes the snapshot and shows CONTINUE --- */
+  {
+    click("playBtn"); pump(8);
+    ok(FM.state() === "play", "play starts a live round");
+    for (let i = 0; i < 5; i++) { dropMid(); pump(16); }
+    for (let mt = 0; mt < 4 && els.score.textContent === "0"; mt++) { FM.mergeTwo(); pump(48); }
+    const roundScore = parseInt(els.score.textContent, 10) || 0;
+    ok(roundScore > 0, `the round earned a score worth saving (${roundScore})`);
+
+    click("homeBtn"); pump(4);   // opens the in-game confirm dialog
+    click("confirmYes"); pump(6);
+    ok(FM.state() === "menu", "leaving the round goes home");
+    const snapRaw = store["fruitmerge.midgame"];
+    ok(!!snapRaw, "snapshot written to localStorage (fruitmerge.midgame)");
+    const snap = snapRaw ? JSON.parse(snapRaw) : null;
+    ok(snap && snap.score === roundScore, `snapshot carries the exact score (${snap && snap.score} vs ${roundScore})`);
+    ok(snap && snap.f.length > 0, `snapshot carries the board (${snap && snap.f.length} fruits)`);
+    ok(!els.contBtn.classList.contains("hide"), "CONTINUE appears at home after leaving a live board");
+    ok((els.contHint.textContent || "").indexOf(String(roundScore)) >= 0,
+       `continue hint shows the saved score ("${els.contHint.textContent}")`);
+
+    /* --- N2: restore rebuilds the same round --- */
+    click("contBtn"); pump(6);
+    ok(FM.state() === "play", "CONTINUE resumes straight into play");
+    ok(els.score.textContent === String(roundScore), `restored score kept (${els.score.textContent})`);
+    ok(FM.count() > 0 && FM.count() <= snap.f.length,
+       `restored fruits back on the board (${FM.count()} of ${snap.f.length}; merges may resume)`);
+    ok(els.contBtn.classList.contains("hide"), "CONTINUE hides while a game is rolling");
+
+    /* --- N3: leaving again re-snapshots; PLAY supersedes and clears --- */
+    click("homeBtn2"); pump(6);
+    ok(!!store["fruitmerge.midgame"], "a second leave re-snapshots the (restored) board");
+    ok(!els.contBtn.classList.contains("hide"), "fresh snapshot summons CONTINUE again");
+    click("playBtn"); pump(8);
+    ok(store["fruitmerge.midgame"] === undefined, "PLAY clears the snapshot (new game supersedes it)");
+    ok(els.contBtn.classList.contains("hide"), "no CONTINUE for a fresh game");
+    pass("save on leave -> Continue -> restore keeps score and board");
+  }
+
+  /* --- N4: corrupt / stale snapshots degrade gracefully --- */
+  {
+    click("homeBtn2"); pump(4);
+    ok(FM.state() === "menu", "at home for the corruption test");
+    store["fruitmerge.midgame"] = "not json{{{{";
+    FM.midResume();
+    ok(els.contBtn.classList.contains("hide"), "corrupt JSON never summons CONTINUE");
+    click("contBtn"); pump(4);
+    ok(FM.state() === "menu", "clicking CONTINUE with a corrupt save stays home (no crash, no ghost board)");
+
+    store["fruitmerge.midgame"] = JSON.stringify({ v:1, score:99999, q:[1,2,3], f:[{ st:"x", sp:9, rs:0 }] });
+    FM.midResume();
+    ok(els.contBtn.classList.contains("hide"), "structurally invalid snapshots are rejected too");
+    FM.midRestore();
+    ok(FM.state() === "menu", "restore on a rejected snapshot is a no-op");
+    delete store["fruitmerge.midgame"];
+    pass("stale board, garbage or tampered save -> clean reset, no error");
+  }
+
+  /* --- N5: resize remaps the pile INSIDE the box on both axes --- */
+  {
+    click("playBtn"); pump(8);
+    for (let i = 0; i < 5; i++) { dropMid(); pump(16); }
+    pump(40);
+    const before = FM.count();
+    ok(before > 0, `a settled pile to resize (${before} fruits)`);
+
+    const ge0 = FM.geoBox();
+    ok(FM.pos().every(g0p => g0p.x >= ge0.boxX - 1 && g0p.x <= ge0.boxX + ge0.boxW + 1 &&
+                           g0p.y >= ge0.boxY - 1 && g0p.y <= ge0.boxY + ge0.boxH + 1),
+       "precondition: pile starts inside the box");
+
+    const oldW = els.gameCanvas.clientWidth, oldH = els.gameCanvas.clientHeight;
+    const oldIW = sandbox.innerWidth, oldIH = sandbox.innerHeight;
+    els.gameCanvas.clientWidth = 500; els.gameCanvas.clientHeight = 1100;
+    sandbox.innerWidth = 500; sandbox.innerHeight = 1100;
+    (winListeners.resize || []).forEach((fn) => fn.call(sandbox.window, {}));
+    pump(30);
+
+    const ge1 = FM.geoBox();
+    ok(ge1.boxW > ge0.boxW, `the box really grew (${ge0.boxW} -> ${ge1.boxW})`);
+    ok(FM.count() === before, "resize loses no fruit");
+    ok(FM.pos().every(p => p.x >= ge1.boxX - 1 && p.x <= ge1.boxX + ge1.boxW + 1 &&
+                           p.y >= ge1.boxY - 1 && p.y <= ge1.boxY + ge1.boxH + 1),
+       "every fruit remapped INSIDE the new box (no escapes past the walls)");
+    ok(FM.state() === "play", "the round survives a mid-game resize");
+
+    dropMid(); pump(24);
+    ok(FM.state() === "play", "drops still work after a resize");
+
+    els.gameCanvas.clientWidth = oldW; els.gameCanvas.clientHeight = oldH;
+    sandbox.innerWidth = oldIW; sandbox.innerHeight = oldIH;
+    (winListeners.resize || []).forEach((fn) => fn.call(sandbox.window, {}));
+    pump(10);
+    click("homeBtn2"); pump(4);
+    pass("resize remap keeps the pile inside the rebuilt box");
+  }
+}
 
 /* ================================================================== REPORT */
 (async () => {

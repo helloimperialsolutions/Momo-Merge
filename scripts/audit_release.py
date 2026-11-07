@@ -132,9 +132,11 @@ if errors:
         print(" -", e)
     sys.exit(1)
 
+mvc = re.search(r'versionCode\s+(\d+)', text)
+mvn = re.search(r'versionName\s+[\"\']([^\"\']+)', text)
 print("RELEASE PREFLIGHT: PASS")
 print(f" - package: {app_id}")
-print(" - Android: minSdk 24 / compileSdk 36 / targetSdk 36; next Play versionCode >= 4, versionName 1.2 for this candidate")
+print(f" - Android: minSdk 24 / compileSdk 36 / targetSdk 36; this candidate: versionCode {mvc.group(1) if mvc else '?'} / versionName {mvn.group(1) if mvn else '?'} (Play tracks have already used versions below these)")
 print(f" - required runtime assets present: {len(required)}; www/ and Android public copies match byte-for-byte")
 print(" - fixed timestep / FM_DEBUG present; no portrait lock or rotate gate")
 print(" - no keystore or signing-secret file in source tree")

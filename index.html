@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Momo Merge — Cute Fruit Drop Puzzle</title>
+<meta name="description" content="Merge cute fruits into a giant watermelon! A cozy drop-puzzle for everyone. Official page of Momo Merge by IS Studios.">
+<meta name="theme-color" content="#f9edd2">
+<meta property="og:title" content="Momo Merge — Cute Fruit Drop Puzzle">
+<meta property="og:description" content="Merge cute fruits into a giant watermelon! A cozy drop-puzzle for everyone.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍉</text></svg>">
+<style>
+  :root{
+    --bg:#f9edd2; --line:#5b3a1e; --pink:#ff4d8d; --pink-d:#d63a72;
+    --green:#57b46e; --green-d:#2f7a44; --ink:#4a2f14;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI","Baloo 2",system-ui,sans-serif;color:var(--ink);
+    background:
+      radial-gradient(circle at 12% 8%, #ffe9b3 0%, transparent 34%),
+      radial-gradient(circle at 88% 16%, #ffd6e4 0%, transparent 30%),
+      radial-gradient(circle at 50% 110%, #d3ecb7 0%, transparent 42%),
+      var(--bg);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:0 16px;
+  }
+  a{color:var(--ink)}
+  header{padding:64px 0 8px;text-align:center}
+  h1{
+    font-size:clamp(2.6rem,8vw,4.2rem);letter-spacing:2px;line-height:1.05;
+    color:var(--pink);-webkit-text-stroke:2px var(--line);
+    text-shadow:0 4px 0 rgba(91,58,30,.18);
+  }
+  .tag{margin-top:10px;font-size:1.1rem;font-weight:600;opacity:.85}
+  .fruits{font-size:2rem;letter-spacing:8px;margin:18px 0 8px}
+  main{max-width:640px;width:100%;text-align:center;padding:24px 0 40px}
+  .card{
+    background:rgba(255,255,255,.72);border:3px solid var(--line);
+    border-radius:22px;padding:26px 22px;margin-top:18px;
+    box-shadow:0 6px 0 rgba(91,58,30,.25);
+  }
+  .card h2{font-size:1.25rem;margin-bottom:8px}
+  .card p{line-height:1.6;margin:6px 0;word-wrap:break-word}
+  .cta{
+    display:inline-block;margin-top:14px;padding:14px 30px;border:0;border-radius:999px;
+    font-size:1.15rem;font-weight:800;letter-spacing:1px;color:#fff;text-decoration:none;
+    background:linear-gradient(135deg,var(--pink),#ff9d5c);cursor:pointer;
+    box-shadow:0 8px 0 var(--pink-d),0 18px 40px rgba(255,77,141,.35);
+    transition:transform .12s ease,box-shadow .12s ease;
+  }
+  .cta:active{transform:translateY(3px);box-shadow:0 4px 0 var(--pink-d)}
+  .cta.green{background:linear-gradient(135deg,var(--green),#7ec96a);
+    box-shadow:0 8px 0 var(--green-d),0 18px 40px rgba(72,166,102,.3)}
+  .cta.green:active{box-shadow:0 4px 0 var(--green-d)}
+  .links{margin-top:16px;font-size:.95rem;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .links a{font-weight:700;text-decoration:none;border-bottom:2px solid rgba(91,58,30,.35);padding-bottom:2px}
+  footer{margin-top:auto;padding:22px 0 30px;font-size:.85rem;opacity:.7;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div class="fruits">🍒 🍓 🍇 🍑 🍈 🍉</div>
+  <h1>MOMO MERGE</h1>
+  <p class="tag">Merge the fruits · grow a watermelon!</p>
+</header>
+
+<main>
+  <div class="card">
+    <h2>🍓 About the game</h2>
+    <p>Momo Merge is a cozy Suika-style drop puzzle: drop cute fruits into the
+    basket, merge matching pairs, grow them step by step into the giant
+    watermelon — and beat your own best score with combos, goldens, bombs and
+    daily challenges.</p>
+    <p>Made with care by <b>IS Studios</b>.</p>
+  </div>
+
+  <div class="card">
+    <h2>🎮 Play</h2>
+    <p>The game runs right in your browser:</p>
+    <a class="cta" href="www/index.html">▶ PLAY NOW</a>
+    <p style="margin-top:14px;font-size:.9rem;opacity:.75">
+      Android version rolling out on Google Play (closed testing)</p>
+    <a class="cta green" href="https://play.google.com/store/apps/details?id=com.isstudios.momomerge"
+       onclick="return false">🤖 Get it on Google Play</a>
+  </div>
+
+  <div class="card">
+    <h2>📜 Policies &amp; support</h2>
+    <div class="links">
+      <a href="www/privacy-policy.html">Privacy Policy</a>
+      <a href="www/account-deletion.html">Delete Account / Data</a>
+      <a href="www/tos.html">Terms of Service</a>
+      <a href="mailto:hello@imperialsolutions.org">Contact us</a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  © 2026 Imperial Solutions · IS Studios · imperialsolutions.org
+</footer>
+</body>
+</html>

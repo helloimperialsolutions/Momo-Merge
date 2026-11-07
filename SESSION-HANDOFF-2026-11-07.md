@@ -4,6 +4,23 @@
 
 ---
 
+## 0. AGLA SESSION (8 Nov, raat ~noon ke baad image window khulegi)
+**Aaj (7 Nov raat) ho gaya — commits:**
+- `3a7aa5f` **OAuth Android complete**: app-scheme callback (`com.isstudios.momomerge://callback`), `appUrlOpen` + cold-start `getLaunchUrl` (index.html → `handleAuthCallback`/`initOAuthRedirect`), `Net.login` native redirect_to, intent-filter manifest me, web flow refactor (`parseAuthFragment`/`applyAuthParams`), **refresh-token boot rotation** (`tryRefreshAuth` — 1h token expire hone par player guest me na gire; REFRESH_KEY `fruitmerge.refresh`)
+- `a7eec07` **Continue feature + resize fix**: mid-game snapshot `fruitmerge.midgame` (`snapshotBoard`/`readSnapshot`/`continueGame`/`refreshContinue`), home pe green **CONTINUE** btn + hint ("Score X · Y fruits waiting"), auto-save on goHome (toast 💾) + visibilitychange/pagehide; `newRound`/`finishGame` clear karte hain; **lastDrop/frozen/golden/combo JAAN-BUJH ke restore nahi hote** (audit rule 4); resize remap ab dono axes (y-drift fix) + clamp box ke andar + velocity scale — fruits ab kabhi bahar nahi jate
+- `eacbe66` **Testers-phase ad skip** (⚠️ production pe lautana hai): `window.FM_TESTERS_SKIP_ADS=true` index.html me — requestReward → instant grant (koi ad/overlay/toast nahi), interstitial skip, banner skip, admob-bridge SDK/UMP interruptively guardoff. **PRODUCTION RELEASE SE PEHLE `false` karna** (single switch). Saath me `addFloat` dedupe/stagger — double garbled toast bug fix
+- `c183a7b` **Pages landing page** — root `index.html` live: game, Play badge, privacy/deletion/ToS/contact links. Play "Website" field me ab `https://helloimperialsolutions.github.io/Momo-Merge/` daal sakte ho (Pages deploy ke baad — 404 check karna)
+- Tests: **587 (553 → 587)** — Phase N (save/continue, corrupt-save graceful reset, resize remap N1–N6) + N6 ad-skip assertions. CI push ke sath green hona chahiye (verify: poora check pass tha)
+- **AI quota ne abhi bhi block kiya** (dono icon/feature-graphic attempts, free tier daily limit) — **retry 8 Nov ~noon** ke baad pehla kaam; prompts design me likhi thi: icon (peach+strawberry kawaii merge sparkles, no text) + feature graphic (basket + falling fruits + "MOMO MERGE" title) → `design/icon-512-v3.png`, `design/feature-graphic-v3.png` beds, exact 512×512 + 1024×500 me resize karke Play listing me replace
+
+**USER-side pending (same list, upar section 4 me):** Supabase URL Configuration (pehla table neeche section 5.1), 12 testers opt-in, GDPR message create, Search Console, phone QA, screenshots, DP name, suppress: ab sirf PageS deploy verify + Supabase entries.
+
+**Supabase dashboard exact values (user ke paste karne ke liye — COMPLETE):**
+- Site URL: `https://helloimperialsolutions.github.io/Momo-Merge/`
+- Redirect URLs (teen no ek ek karke): `https://helloimperialsolutions.github.io/Momo-Merge/**` · `http://localhost:8081/**` · `com.isstudios.momomerge://callback` (app ke liye ZARURI — warna Android login wapas nahi aayega)
+
+---
+
 ## 1. Project identity (har session yaad rakhne wale)
 
 - **Game:** Momo Merge: Cute Fruit Drop (Suika/fruit-merge, Matter.js inline in `www/index.html`)

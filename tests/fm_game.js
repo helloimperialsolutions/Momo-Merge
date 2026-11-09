@@ -3147,6 +3147,17 @@ function buildLeaderboard(){
   });
 }
 var lbState={rows:[],page:0};
+/* Escape untrusted strings before they go inside any innerHTML build. The
+   leaderboard `name` column comes straight from the server and the DB only
+   bounds its LENGTH (2..16), not its charset — a hostile client with its own
+   valid OAuth token could store markup like "<svg onload=..." and it would
+   otherwise execute in EVERY other visitor's session (stored XSS, and the
+   session tokens live in localStorage). Server data never ships unescaped. */
+function esc(v,fb){
+  var s=String(v==null?(fb||""):v);
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
 function renderLbPage(){
   var box=document.getElementById("lbList"); if(!box) return;
   var start=lbState.page*LB_PAGE;
@@ -3159,8 +3170,8 @@ function renderLbPage(){
       var medal = rank===1?"🥇": rank===2?"🥈": rank===3?"🥉": rank;
       html+='<div class="lbRow'+(r.me?" me":"")+'">'+
         '<div class="lbRank">'+medal+'</div>'+
-        '<div class="lbAva">'+(r.a||"🍑")+'</div>'+
-        '<div class="lbName">'+String(r.name).slice(0,NAME_MAX)+'</div>'+
+        '<div class="lbAva">'+esc(r.a,"🍑")+'</div>'+
+        '<div class="lbName">'+esc(r.name)+'</div>'+
         '<div class="lbScore">'+r.score+'</div></div>';
     });
     box.innerHTML=html;

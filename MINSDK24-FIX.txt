@@ -1,3 +1,0 @@
-Play Console minSdk fix — status update (2026-11-06)
-===================================================
-The earlier Play upload was rejected because it had minSdkVersion 23. The local source now uses minSdkVersion 24 (Android 7.0+), compileSdk/targetSdk 36. VersionCode 3 has since been uploaded to Internal testing; the corrected full-source candidate must use versionCode 4 / versionName 1.2. Read AUDIT-AND-STATUS.md. The old AAB cannot be repaired; rebuild from the complete source and verify on-device before promoting.

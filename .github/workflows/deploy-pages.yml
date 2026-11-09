@@ -1,0 +1,56 @@
+# ============================================================ FRUIT MERGE
+# Lean GitHub Pages deploy — publishes ONLY the shipped site, never the
+# repo working files. The default "deploy from branch" mode serves the
+# ENTIRE repository (tests/, scripts/, preview/, design/, internal docs);
+# this workflow replaces that with a whitelisted artifact.
+#
+# One-time switch (settings the API cannot flip by itself):
+#   Repo → Settings → Pages → Build and deployment → Source:
+#       "Deploy from a branch"  →  "GitHub Actions"
+# Then run this workflow once (Run workflow). From then on, run it after
+# every push that should reach the site, or change `on:` to push:branches:main.
+#
+# What gets published: root index.html, .nojekyll, www/** (game + policies).
+# What stays PRIVATE: tests/, scripts/, design/, preview/, server/, docs.
+name: Deploy site to GitHub Pages (lean artifact)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble whitelisted site
+        run: |
+          mkdir -p site
+          cp index.html site/
+          cp .nojekyll site/
+          cp -r www site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

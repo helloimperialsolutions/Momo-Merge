@@ -13,6 +13,27 @@ android/app/src/main/assets/capacitor.plugins.json
 *.keystore
 *.jks
 keystore.properties
+SECRETS.txt
+
+# Environment files — secrets kabhi repo me nahi
+.env
+.env.*
+
+# Internal working docs (home attention: ye PUBLIC Pages site par jana nahi
+# chahiye — inme personal info / media plans / keys ki notes hen)
+AUDIT-AND-STATUS.md
+CLOUD-BUILD.md
+DEPLOY-GUIDE.md
+HANDOFF.md
+MERGE-README.txt
+MERGE-REVIEW-STATUS.md
+MINSDK24-FIX.txt
+PACKAGE-ID-MIGRATION.md
+README-CUTE-REACTIVE.txt
+SESSION-HANDOFF-*.md
+SETUP-GUIDE.md
+SOURCE-FILES-MANIFEST.csv
+WORKSPACE-NOTES.md
 
 # Logs & OS junk
 *.log

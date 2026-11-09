@@ -20,7 +20,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest      # GitHub's Linux machine (Java + Android SDK ready)
+    # PINNED to the 24.04 image on purpose: ubuntu-latest started migrating to
+    # Ubuntu 26 (runner-images#14748) and a build that was green on 24.04 began
+    # failing with no code change. Pin first, upgrade deliberately later.
+    runs-on: ubuntu-24.04      # GitHub's Linux machine (Java + Android SDK ready)
 
     steps:
       - name: Check out code
@@ -107,7 +110,15 @@ jobs:
 
       - name: Build the AAB
         working-directory: android
-        run: ./gradlew bundleRelease --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          if ! ./gradlew bundleRelease --no-daemon --stacktrace 2>&1 | tee gradle.log; then
+            echo "::error::gradle bundleRelease FAILED (full step log above)"
+            echo "------------------- GRADLE FAILURE TAIL -------------------"
+            tail -n 200 gradle.log
+            grep -n -A 12 "What went wrong" gradle.log | head -40 | while read -r l; do echo "::error::gradle: $l"; done
+            exit 1
+          fi
 
       - name: Verify signed AAB before upload
         run: |

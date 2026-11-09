@@ -42,6 +42,9 @@ jobs:
           cp index.html site/
           cp .nojekyll site/
           cp -r www site/
+          # CNAME (custom domain games.imperialsolutions.org) zero bina
+          # Pages ka domain reset/pause ho jata hai — include karna ZARURI.
+          cp CNAME site/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

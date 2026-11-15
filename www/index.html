@@ -1190,7 +1190,7 @@ en:{
   freezeOn:"❄ Frozen! 6 seconds",
   adFail:"The ad didn't play — please try again",
   freezeUp:"❄ Time's up!", oops:"💨 oops!",
-  rain:"🍉 WATERMELON RAIN!", boom:"💣 BOOM! +",
+  rain:"🍉 WATERMELON RAIN!", fusion:"👑 MELON FUSION!", boom:"💣 BOOM! +",
   newBestFloat:"🏆 New record!",
   newAch:"🏅 New achievements: ", soFar:"So far ",
   melonsMade:" watermelons made! Nice 🍉",
@@ -1588,6 +1588,14 @@ function initWorld(){
   Events.on(engine,"collisionStart",function(ev){
     ev.pairs.forEach(function(p){
       var a=p.bodyA,b=p.bodyB;
+      /* Idea 2 (15 Nov): rain melons are ephemeral gifts, never board fruit.
+         Their FIRST contact with ANYTHING -- fruit, bomb or plain wall -- is
+         the pop trigger. Only a flag is raised here: the world is never
+         mutated inside a physics event (same reason merges go through a
+         queue), the pop itself runs in the game loop. */
+      if(a.plugin&&a.plugin.rainy&&!a.plugin.dead) a.plugin.popReq=Date.now();
+      if(b.plugin&&b.plugin.rainy&&!b.plugin.dead) b.plugin.popReq=Date.now();
+      if((a.plugin&&a.plugin.rainy)||(b.plugin&&b.plugin.rainy)) return;
       if(!a.plugin||!b.plugin) return;
       if(a.plugin.sp===1||b.plugin.sp===1){          // bomb contact → fuse
         var bm=a.plugin.sp===1?a:b;
@@ -1646,6 +1654,10 @@ function processMerges(){
     var a=pair[0],b=pair[1];
     if(a.plugin.dead||b.plugin.dead||fruits.indexOf(a)<0||fruits.indexOf(b)<0) return;
     if(a.plugin.sp===1||b.plugin.sp===1) return;
+    /* Idea 2 guard: without this a falling rain melon could enter a merge
+       pair with the player's earned watermelon and make it VANISH (the
+       "my melon got eaten" bug). A rain melon is never merge fodder. */
+    if(a.plugin.rainy||b.plugin.rainy) return;
     var st=a.plugin.stage;
     var mx=(a.position.x+b.position.x)/2, my=(a.position.y+b.position.y)/2;
     var wasGold=a.plugin.gold||b.plugin.gold;
@@ -1662,9 +1674,18 @@ function processMerges(){
     else if(wasGold) goldenUntil=now+20000;
     if(wasGold) reactCritters("gold","Shiny!","✨",1500);
     if(st===curF().length-1){
-      var gain=132*scoreMult();
-      score+=gain; addRing(mx,my,radius(st),"#43a55c"); addParts(mx,my,"#43a55c",18);
-      addFloat(mx,my,"+"+gain+" 💥",{c:"#2f9e57",big:true}); celebrateMelon(mx,my,true); sfxMelon(); buzz([50,40,50,40,80]); shake=10;
+      /* Idea 4 (15 Nov): melon+melon used to delete BOTH watermelons for a
+         measly +132 -- the player's hardest-earned fruit vanished for almost
+         nothing. There is still no stage above watermelon, so the pair keeps
+         combining into nothing, but the reward now matches the work:
+         400x score and a 10-diamond jackpot, with a crown-tier party. */
+      var gain=MELON_FUSION_SCORE*scoreMult();
+      score+=gain;
+      addRing(mx,my,radius(st),"#43a55c");
+      addParts(mx,my,"#43a55c",18); addParts(mx,my,"#7ee3f2",26);
+      addFloat(mx,my,"+"+gain+" 💥",{c:"#2f9e57",big:true});
+      addDiamonds(MELON_FUSION_DIA,"Melon fusion 👑");
+      celebrateMelon(mx,my,true); sfxMelon(); buzz([50,40,50,40,80]); shake=12;
       reactCritters("melon","Mega melon!","🍉",2200);
       store.melons++;
     } else {
@@ -1722,11 +1743,37 @@ function processRain(){
     if(state==="play"){
       var st=curF().length-1;
       var x=geo.boxX+radius(st)*0.5+40+Math.random()*(geo.boxW-80-radius(st)*0.5);
-      spawnFruit(st,x,geo.aimY,{rScale:0.5,sp:0});
+      var rb=spawnFruit(st,x,geo.aimY,{rScale:0.5,sp:0});
+      /* Idea 2: flagged at birth, so the collision handler can pop it on
+         first contact instead of letting it land in the pile (where it used
+         to merge with -- and destroy -- the player's earned watermelon). */
+      rb.plugin.rainy=true;
       addFloat(x,geo.boxY+40,"🍉");
       tone(700,0.12,"sine",0.08,200);
     }
     return false;
+  });
+}
+
+/* Idea 2 reward numbers live here so balance tweaks touch one place. */
+var RAIN_POP_DIA=2, MELON_FUSION_DIA=10, MELON_FUSION_SCORE=400;
+/* Pop = remove + sparkle + "+2 💎" + real diamonds + a little chime. */
+function popRainMelon(b){
+  if(b.plugin.dead) return;
+  var x=b.position.x, y=b.position.y, r=b.circleRadius;
+  removeFruit(b);
+  addRing(x,y,r,"#7ee3f2");
+  addParts(x,y,"#7ee3f2",12); addParts(x,y,"#fff",6);
+  addFloat(x,y-10,"+"+RAIN_POP_DIA+" 💎",{c:"#7ee3f2",big:true});
+  addDiamonds(RAIN_POP_DIA,"Melon rain 🍉");
+  tone(880,0.1,"sine",0.07,160); buzz(8);
+}
+/* Deferred pops: the collision handler only raises popReq; this drains it in
+   the loop, keeping world edits out of the physics event. */
+function processRainPops(){
+  if(!fruits.length) return;
+  fruits.slice().forEach(function(b){
+    if(b.plugin.rainy&&b.plugin.popReq&&!b.plugin.dead) popRainMelon(b);
   });
 }
 
@@ -1777,10 +1824,13 @@ function mkConfetti(x,y,burst){
     t:Date.now(),ph:Math.random()*6.28};
 }
 function addConfetti(x,y,n){ for(var i=0;i<n;i++) effects.confetti.push(mkConfetti(x,y,true)); }
-function celebrateMelon(x,y,big){
-  effects.banner={txt:big?"💥 DOUBLE Watermelon!":"🍉 Watermelon! 🍉",t:Date.now()};
-  addConfetti(x,y,big?90:64);
-  for(var i=0;i<36;i++) effects.confetti.push(mkConfetti(geo.boxX+Math.random()*geo.boxW,geo.boxY-8,false));
+function celebrateMelon(x,y,fusion){
+  /* fusion (Idea 4) = the melon+melon trade-up: crown banner, bigger bursts.
+     The old "DOUBLE Watermelon!" text is gone -- melon+melon IS the fusion
+     now, and it deserves its own name. */
+  effects.banner={txt:fusion?T("fusion"):"🍉 Watermelon! 🍉",t:Date.now()};
+  addConfetti(x,y,fusion?130:64);
+  for(var i=0;i<(fusion?64:36);i++) effects.confetti.push(mkConfetti(geo.boxX+Math.random()*geo.boxW,geo.boxY-8,false));
   if(effects.confetti.length>360) effects.confetti.splice(0,effects.confetti.length-360);
 }
 function notify(msg){ addFloat(W/2,geo.boxY+70,msg); }
@@ -2473,6 +2523,7 @@ function snapshotBoard(){
          still lands the pile inside the basket instead of in the void. */
       finfo.push({ st:b.plugin.stage, sp:b.plugin.sp,
                    g:b.plugin.gold?1:0, rs:b.plugin.rScale||1,
+                   rn:b.plugin.rainy?1:0,
                    x:(b.position.x-geo.boxX)/geo.boxW,
                    y:(b.position.y-geo.boxY)/geo.boxH });
     });
@@ -2503,6 +2554,7 @@ function readSnapshot(){
       if(!o||!(o.st>=0&&o.st<F)) return null;
       if(!(o.sp>=0&&o.sp<=2)) return null;
       if(!(o.rs>0&&o.rs<=2)||!isFinite(o.x)||!isFinite(o.y)) return null;
+      if(o.rn!=null&&o.rn!==0&&o.rn!==1) return null;
     }
     if(!isFinite(s.score)||s.score<0||s.score>5e7) return null;
     return s;
@@ -2537,6 +2589,7 @@ function continueGame(){
     var y=Math.max(geo.boxY+r0+3,Math.min(geo.boxY+geo.boxH-r0-3, geo.boxY+o.y*geo.boxH));
     var b=spawnFruit(o.st,x,y,{sp:o.sp,rScale:o.rs||1});
     if(o.g) b.plugin.gold=true;
+    if(o.rn) b.plugin.rainy=true;   /* a mid-fall rain melon resumes popping */
   });
   document.body.classList.remove("inmenu");
   canDrop=true; overLineSince=0; overGraceUntil=Date.now()+1000;
@@ -4568,6 +4621,7 @@ function loop(t){
     });
     processMerges();
     processRain();
+    processRainPops();
     checkGameOver();
     // combo decay
     if(comboCount>0&&now-lastMergeT>2500) comboCount=0;
@@ -4766,6 +4820,16 @@ window.FM_DEBUG={
     floats:effects.floats.map(function(f){ return f.txt; }) }; },
   seedPair:function(st){ var cxm=geo.boxX+geo.boxW/2, off=Math.max(6,radius(st)*0.9),
     ym=geo.boxY+geo.boxH*0.4; spawnFruit(st,cxm-off,ym); spawnFruit(st,cxm+off,ym); },
+  /* Watermelon rain hooks (15 Nov): observe stages/rainy flags directly, push
+     real entries into rainQueue so processRain's own spawn path runs, and
+     seed the destruction scenario the guard must prevent (normal melon +
+     rainy melon overlapping). */
+  stages:function(){ return fruits.filter(function(b){return !b.plugin.dead;}).map(function(b){
+    return {st:b.plugin.stage,rs:b.plugin.rScale,rainy:!!b.plugin.rainy};}); },
+  rainSeed:function(n){ var now=Date.now(); for(var i=0;i<(n||3);i++) rainQueue.push({at:now});
+    return rainQueue.length; },
+  rainProbe:function(){ var st=curF().length-1, xm=geo.boxX+geo.boxW/2, ym=geo.boxY+geo.boxH*0.5;
+    spawnFruit(st,xm-4,ym); var r=spawnFruit(st,xm+4,ym); r.plugin.rainy=true; },
   /* Phase-3 Pop hooks: inspect arming/stock, fire the real hit-test, and
      seed a bomb in a corner (no physics step runs between seed and test,
      so its 380ms fuse can never fire mid-assertion). */

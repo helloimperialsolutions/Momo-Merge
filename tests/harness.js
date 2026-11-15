@@ -2241,11 +2241,13 @@ phase("M", "Economy: diamonds, challenges, shop, profile, ranks");
     for (let i = 0; i < 240 && !party; i++) { pump(2); const j = D.juice(); if (j.banner && j.confetti >= 40) party = j; }
     ok(!!party, "growing a watermelon fires the banner + confetti");
     ok(!!party && /Watermelon/.test(party.banner), "the banner celebrates the Watermelon");
-    // two watermelons merging = the double party
+    // two watermelons merging = the MELON FUSION trade-up (15 Nov): the old
+    // "DOUBLE Watermelon!" party deleted both melons for +132; the fusion
+    // pays 400x and a diamond jackpot instead.
     D.seedPair(10);
-    let sawDouble = false;
-    for (let i = 0; i < 240 && !sawDouble; i++) { pump(2); const j = D.juice(); if (j.banner && /DOUBLE/.test(j.banner)) sawDouble = true; }
-    ok(sawDouble, "two watermelons merging throw the double celebration");
+    let sawFusion = false;
+    for (let i = 0; i < 240 && !sawFusion; i++) { pump(2); const j = D.juice(); if (j.banner && /FUSION/.test(j.banner)) sawFusion = true; }
+    ok(sawFusion, "two watermelons merging throw the MELON FUSION celebration");
     pass("phase-2 juice: squash-pop, floating score, combo + watermelon parties");
   }
 
@@ -2543,6 +2545,99 @@ phase("N", "Mid-game save / Continue + resize remap");
     click("homeBtn2"); pump(4);
     pass("testers phase: every ad request short-circuits, rewards flow freely");
   });
+}
+
+/* ================================================================== PHASE O */
+/* Watermelon rain pop (Idea 2) + melon-melon fusion trade-up (Idea 4), 15 Nov.
+   Rain melons are flagged gifts that pop into diamonds on first contact and
+   can never enter a merge; two earned watermelons now pay 400x + 10 diamonds
+   instead of deleting themselves for +132. */
+phase("O", "Watermelon rain pop + MELON FUSION trade-up");
+{
+  const D = sandbox.window.FM_DEBUG;
+  click("homeBtn2"); pump(6);
+  ok(FM.state() === "menu", "starting O from the home screen");
+
+  /* --- O1: rain melons spawn flagged, fall, pop into diamonds, leave nothing */
+  {
+    click("playBtn"); pump(8);
+    ok(D.state() === "play", "rain tests run inside a live round");
+    D.dia0();
+    D.rainSeed(3);
+    pump(1);   // one frame: processRain has spawned them, physics hasn't run yet
+    ok(D.stages().filter((s) => s.rainy).length === 3,
+       `3 rain melons spawned flagged rainy (${D.stages().filter((s) => s.rainy).length})`);
+    for (let i = 0; i < 480 && D.econ().dia < 6; i++) pump(2);
+    ok(D.econ().dia === 6, `every rain melon paid +2 \u{1F48E} (got ${D.econ().dia}, want 6)`);
+    ok(D.stages().every((s) => !s.rainy), "no rain melon survives on the board");
+    /* If the guard were missing, overlapping rain melons would have merged
+       into a FUSION and paid 10 extra diamonds -- dia===6 proves it never
+       happened. */
+    ok(!D.juice().banner || !/FUSION/.test(D.juice().banner), "rain melons never merged with each other");
+    pass("rain melon: spawn flagged -> first contact pop -> +2 diamonds each");
+  }
+
+  /* --- O2: the guard -- a rain melon can NEVER eat the player's melon --- */
+  {
+    D.dia0();
+    D.rainProbe();   // normal watermelon + rainy watermelon, overlapping
+    pump(4);
+    for (let i = 0; i < 480 && D.econ().dia < 2; i++) pump(2);
+    ok(D.econ().dia === 2, `the rainy twin popped (+2 \u{1F48E}, got ${D.econ().dia})`);
+    const maxSt = Math.max(...D.stages().map((s) => s.st));
+    ok(D.stages().some((s) => s.st === maxSt && !s.rainy),
+       "the PLAYER's watermelon survived the rain melon's touch");
+    ok(D.stages().every((s) => !s.rainy), "the rain melon is gone from the board");
+    pass("no-merge guard: rain melon pops beside the player's melon, never merges");
+  }
+
+  /* --- O3: melon+melon = MELON FUSION (400x score + 10 diamonds, no new fruit) */
+  {
+    click("homeBtn2"); pump(6);
+    click("playBtn"); pump(8);   // fresh board so the only merge is the pair
+    D.dia0();
+    const before = parseInt(els.score.textContent, 10) || 0;
+    ok(before === 0, `fresh board starts at zero score (${before})`);
+    D.seedPair(10);
+    let fused = null;
+    for (let i = 0; i < 240 && !fused; i++) { pump(2); const j = D.juice(); if (j.banner && /FUSION/.test(j.banner)) fused = j; }
+    ok(!!fused, "the pair fired the MELON FUSION banner");
+    ok(!!fused && /MELON FUSION/.test(fused.banner), `crown banner text ("${fused && fused.banner}")`);
+    ok(D.econ().dia === 10, `the fusion paid the 10-diamond jackpot (got ${D.econ().dia})`);
+    ok(D.juice().floats.some((t) => /^\+400 💥$/.test(t)),
+       `the fusion float shows +400 (got [${D.juice().floats.join(" | ")}])`);
+    ok(parseInt(els.score.textContent, 10) === 400, `score jumped exactly 400 (got ${els.score.textContent})`);
+    ok(D.stages().length === 0, "both melons are consumed and NO new fruit spawns");
+    ok(D.juice().confetti >= 100, `the fusion throws a mega confetti burst (${D.juice().confetti})`);
+    pass("melon fusion: both melons consumed, 400x + 10 diamonds + crown party");
+  }
+
+  /* --- O4: a mid-fall rain melon survives a snapshot with its rainy flag --- */
+  {
+    D.dia0();
+    D.rainSeed(2);
+    pump(1);   // spawn only -- both must still be mid-fall for the snapshot
+    ok(D.stages().filter((s) => s.rainy).length === 2, "two rain melons mid-fall for the snapshot");
+    ok(FM.midSnap() === true, "snapshot written while rain melons fall");
+    const snapRaw = store["fruitmerge.midgame"];
+    const snap = snapRaw ? JSON.parse(snapRaw) : null;
+    ok(!!snap && snap.f.some((o) => o.rn === 1), "the snapshot carries the rainy flag (rn:1)");
+    click("homeBtn2"); pump(6);
+    ok(!!store["fruitmerge.midgame"], "going home re-snapshots the live board");
+    const snap2 = JSON.parse(store["fruitmerge.midgame"]);
+    ok(snap2.f.some((o) => o.rn === 1), "the home-screen snapshot keeps the rainy flag too");
+    click("contBtn"); pump(6);
+    ok(D.state() === "play", "CONTINUE restores the round");
+    /* The flag's round-trip is proven by OUTCOME: a rainy melon pops on its
+       first contact, a melon that lost its flag would sit on the board as
+       normal (mergeable) watermelon forever. Two restored rainy melons that
+       spawn overlapping (same clamped y) pop instantly -> +4 total and an
+       EMPTY board. If the flag were lost, the board would keep 2 melons. */
+    for (let i = 0; i < 480 && D.econ().dia < 4; i++) pump(2);
+    ok(D.econ().dia === 4, `restored rain melons still pop into diamonds (got ${D.econ().dia}, want 4)`);
+    ok(D.stages().length === 0, `restored rain melons popped, never settled as merge fodder (board: ${D.stages().length})`);
+    pass("rainy flag round-trips through snapshot -> CONTINUE without becoming merge fodder");
+  }
 }
 
 /* ================================================================== REPORT */

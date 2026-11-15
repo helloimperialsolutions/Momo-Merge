@@ -2378,6 +2378,25 @@ document.getElementById("resumeBtn").addEventListener("click",function(){
   document.getElementById("pauseOv").classList.add("hide"); state="play"; updatePowerUI();
 });
 window.addEventListener("resize",function(){ layout(); applyHomeBg(); applyPlayBg(); });
+/* A window resize is NOT the only thing that reflows the canvas. The header
+   and toolbar drop out of the flex column in the menu and return in play,
+   web fonts settle late, and on a phone's FIRST launch the safe-area insets
+   and WebView viewport land after the first layout() ran. None of that fires
+   a resize event, so the canvas kept its old bitmap and rendered STRETCHED
+   into the new box (user report: squashed first launch, fine only after a
+   full app restart). Watching the box itself fixes every one of those paths:
+   any size change re-runs layout() before the next paint. The guard stops a
+   feedback loop (layout() writes the bitmap size, which is NOT the CSS box,
+   so the observer cannot see it) and keeps this a no-op on steady frames. */
+if(window.ResizeObserver){
+  var _cvBoxW=0,_cvBoxH=0;
+  new ResizeObserver(function(){
+    var bw=cv.clientWidth,bh=cv.clientHeight;
+    if(bw===_cvBoxW&&bh===_cvBoxH) return;
+    _cvBoxW=bw; _cvBoxH=bh;
+    layout(); applyHomeBg(); applyPlayBg();
+  }).observe(cv);
+}
 /* Auto-save checkpoint for the "closed the app" case. pagehide/visibilitychange
    cover Android WebView both: backgrounding fires visibilitychange first, a
    real kill then fires pagehide. goHome() is the explicit variant (it toasts);

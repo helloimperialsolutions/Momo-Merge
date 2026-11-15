@@ -1386,6 +1386,12 @@ function readSnapshot(){
 function continueGame(){
   var s=readSnapshot();
   if(!s){ refreshContinue(); return; }
+  /* The save is consumed the moment it is restored. Leaving it on disk let
+     a mid-continue app kill resurrect the OLD (pre-continue) board on the
+     next launch -- CONTINUE would reappear offering a board the player had
+     already moved past from. goHome()/pagehide write a fresh snapshot for
+     the live board, so nothing is lost by clearing here. */
+  clearSnapshot();
   portalGameplayStart();
   fruits.slice().forEach(removeFruit);
   mergeQueue=[]; pendingBooms=[]; rainQueue=[];
@@ -3402,14 +3408,19 @@ function loop(t){
     if(finaleIdx>=finaleQueue.length&&now>=finaleNext+650) finishGame();
   }
   if(state==="play"){
-    if(frozen()){
-      if(now>=frozenUntil){
-        frozenUntil=0; held=null;
-        fruits.forEach(function(b){ Body.setVelocity(b,{x:0,y:0}); Body.setAngularVelocity(b,0); });
-        sfxShatter(); reactCritters("freeze","Thawed!","🌸",1350); notify(T("freezeUp"));
-        updatePowerUI();
-      }
-    } else {
+    /* Thaw must be checked OUTSIDE frozen(): frozen() is
+       Date.now()<frozenUntil, so the old inner now>=frozenUntil test was
+       unreachable dead code -- a fruit picked up during the freeze stayed
+       grabbable (and placeable anywhere) forever after the ice melted.
+       The instant the timer ends, whatever is held is released right where
+       it sits and the whole board drops from rest. */
+    if(frozenUntil&&now>=frozenUntil){
+      frozenUntil=0; held=null;
+      fruits.forEach(function(b){ Body.setVelocity(b,{x:0,y:0}); Body.setAngularVelocity(b,0); });
+      sfxShatter(); reactCritters("freeze","Thawed!","🌸",1350); notify(T("freezeUp"));
+      updatePowerUI();
+    }
+    if(!frozen()){
       physAcc+=dt; var steps=0;
       while(physAcc>=16.666&&steps<3){ Engine.update(engine,16.666); physAcc-=16.666; steps++; }
       if(physAcc>60) physAcc=0;

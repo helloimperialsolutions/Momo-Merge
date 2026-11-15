@@ -19,7 +19,7 @@ const MATTER_SRC = fs.readFileSync(path.join(HERE, "fm_matter.js"), "utf8");
 const GAME_SRC = fs.readFileSync(path.join(HERE, "fm_game.js"), "utf8");
 /* The DOM stub does not parse HTML, so assertions about static markup have to
    read the shipped file directly -- the same trick the physics guard uses. */
-const PAGE_SRC = fs.readFileSync(path.join(HERE, "..", "www", "index.html"), "utf8");
+const PAGE_SRC = fs.readFileSync(path.join(HERE, "..", "www", "index.html"), "utf8").replace(/\r\n/g, "\n");
 
 /* ---------------------------------------------------------------- geometry
  * layout() reads cv.clientWidth/clientHeight. 400x800 gives:

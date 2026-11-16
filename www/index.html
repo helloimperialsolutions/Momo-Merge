@@ -1491,7 +1491,7 @@ var BASKET_MEASURE={w:736,h:931,innerL:94,innerR:644,innerT:136,innerB:865};
 var Engine=Matter.Engine, Bodies=Matter.Bodies, Body=Matter.Body,
     Composite=Matter.Composite, Events=Matter.Events;
 var engine, world, walls={L:null,R:null,B:null};
-var fruits=[], mergeQueue=[], pendingBooms=[], rainQueue=[];
+var fruits=[], mergeQueue=[], rainQueue=[];
 var state="menu";
 var score=0, cur={st:0,sp:0}, nxt={st:0,sp:0}, q2={st:0,sp:0}, q3={st:0,sp:0}, aimX=0, canDrop=true;
 var overLineSince=0, overGraceUntil=0, shake=0, flashT=0;
@@ -2476,7 +2476,7 @@ function newRound(){
   clearSnapshot();
   portalGameplayStart();
   fruits.slice().forEach(removeFruit);
-  mergeQueue=[]; pendingBooms=[]; rainQueue=[];
+  mergeQueue=[]; rainQueue=[];
   effects={rings:[],parts:[],floats:[],ghosts:[],confetti:[],banner:null};
   score=0; overLineSince=0; usedContinue=false;
   powers={sweep:1,undo:1,freeze:1}; popArmed=false; lastDrop=null; physAcc=0; overGraceUntil=0;
@@ -2575,7 +2575,7 @@ function continueGame(){
   clearSnapshot();
   portalGameplayStart();
   fruits.slice().forEach(removeFruit);
-  mergeQueue=[]; pendingBooms=[]; rainQueue=[];
+  mergeQueue=[]; rainQueue=[];
   effects={rings:[],parts:[],floats:[],ghosts:[],confetti:[],banner:null};
   sessionAch=[];
   score=s.score||0; usedContinue=!!s.uc; totalDrops=s.drops||0;
@@ -3442,9 +3442,14 @@ function goHome(){
   if((state==="play"||state==="pause")&&(score>0||fruits.length)){
     if(snapshotBoard()) diaToast("💾",T("savedNote"));
   }
+  /* A finale round is already lost: like finishGame(), its saved board (if
+     any) has no future. Without this, a board snapshotted while the round
+     was alive (backgrounding) got resurrected by CONTINUE as a pre-finale
+     board after the player quit out of the death animation. */
+  if(state==="finale"){ clearSnapshot(); }
   state="menu"; held=null; frozenUntil=0; volOpen=false; pausedByVol=false; adPrevState=null;
   document.body.classList.add("inmenu");
-  mergeQueue=[]; pendingBooms=[]; rainQueue=[];
+  mergeQueue=[]; rainQueue=[];
   document.getElementById("pauseOv").classList.add("hide");
   document.getElementById("overOv").classList.add("hide");
   document.getElementById("startOv").classList.remove("hide");
@@ -3504,7 +3509,12 @@ document.addEventListener("visibilitychange",function(){
   if(document.hidden&&state==="play"){ state="pause"; document.getElementById("pauseOv").classList.remove("hide"); }
 });
 document.getElementById("resumeBtn").addEventListener("click",function(){
-  document.getElementById("pauseOv").classList.add("hide"); state="play"; updatePowerUI();
+  document.getElementById("pauseOv").classList.add("hide");
+  /* Don't fight another pause owner: an ad snapshot or the volume popup can
+     still be holding the game. adResume()/closeVol() resume it when their
+     turn comes; forcing "play" here would run it behind their overlay. */
+  if(adPrevState||volOpen) return;
+  state="play"; updatePowerUI();
 });
 window.addEventListener("resize",function(){ layout(); applyHomeBg(); applyPlayBg(); });
 /* A window resize is NOT the only thing that reflows the canvas. The header

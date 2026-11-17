@@ -56,6 +56,7 @@ en:{
   bGolden:"🌟 Next game: 15s double score",
   confirmRestart:"Your current score will reset.",
   confirmHome:"This game will end.",
+  popExit:"🍉 Pop all & go home",
   emptyBox:"The box is empty!",
   sweepDone:"🧹 Swept! Every small fruit cleared",
   sweepNone:"No small fruits to sweep",
@@ -2230,26 +2231,35 @@ window.addEventListener("keydown",function(e){
 });
 
 /* ---------- 14b. in-game dialogs (no browser confirm/prompt) ---------- */
-var confirmCb=null, confirmPaused=false;
-function askConfirm(ico,title,msg,yesText,cb){
+var confirmCb=null, confirmCashCb=null, confirmPaused=false;
+function askConfirm(ico,title,msg,yesText,cb,cashText,cashCb){
   var ov=document.getElementById("confirmOv");
   if(!ov){ if(cb) cb(); return; }
-  confirmCb=cb||null;
+  confirmCb=cb||null; confirmCashCb=cashCb||null;
   var ic=document.getElementById("confirmIco"); if(ic) ic.textContent=ico||"🍉";
   var ti=document.getElementById("confirmTitle"); if(ti) ti.textContent=title||"Are you sure?";
   var ms=document.getElementById("confirmMsg"); if(ms) ms.textContent=msg||"";
   var ys=document.getElementById("confirmYes"); if(ys) ys.textContent=yesText||"Yes";
+  /* The third button is opt-in per dialog: only the Go-home confirm passes a
+     label, so every other confirm keeps its original two-button layout. */
+  var ca=document.getElementById("confirmCash");
+  if(ca){ ca.textContent=cashText||""; ca.style.display=cashText?"":"none"; }
   ov.classList.remove("hide");
   if(state==="play"){ state="pause"; confirmPaused=true; }
 }
 function closeConfirm(){
   var ov=document.getElementById("confirmOv"); if(ov) ov.classList.add("hide");
+  confirmCashCb=null;
   if(confirmPaused){ confirmPaused=false; if(state==="pause") state="play"; }
 }
 (function(){
   var ys=document.getElementById("confirmYes");
   if(ys) ys.addEventListener("click",function(){
     var cb=confirmCb; confirmCb=null; closeConfirm(); if(cb) cb();
+  });
+  var ca=document.getElementById("confirmCash");
+  if(ca) ca.addEventListener("click",function(){
+    var cb=confirmCashCb; confirmCashCb=null; confirmCb=null; closeConfirm(); if(cb) cb();
   });
   var no=document.getElementById("confirmNo");
   if(no) no.addEventListener("click",function(){ confirmCb=null; closeConfirm(); });
@@ -2305,6 +2315,18 @@ document.getElementById("restartBtn").addEventListener("click",function(){
   document.getElementById("overOv").classList.add("hide");
   sessionAch=[]; newRound();
 });
+/* VOLUNTARY EXIT -- the third choice in the Go-home dialog. The player leaves
+   a live round but keeps what they built: the SAME cascade the over-line
+   finale runs pops every fruit for its value (score climbs), then the existing
+   finale terminal banks it (finishGame: best/dailyBest/leaderboard/achievements)
+   and finaleExit reroutes the landing from the Game Over card to the home
+   screen. The pop loop itself is untouched -- only the terminal step moves. */
+var finaleExit=false;
+function popAndExit(){
+  if(state!=="play") return;
+  finaleExit=true;
+  startFinale();
+}
 function goHome(){
   portalGameplayStop();
   releaseWake();
@@ -2328,7 +2350,8 @@ function goHome(){
 }
 document.getElementById("homeBtn").addEventListener("click",function(){
   if(state==="play"&&score>0){
-    askConfirm("🏠","Go home?",T("confirmHome"),"Go home",function(){ goHome(); });
+    askConfirm("🏠","Go home?",T("confirmHome"),"Go home",function(){ goHome(); },
+      T("popExit"),function(){ popAndExit(); });
     return;
   }
   goHome();
@@ -3487,7 +3510,15 @@ function loop(t){
       }
       finaleIdx++; finaleNext+=110;
     }
-    if(finaleIdx>=finaleQueue.length&&now>=finaleNext+650) finishGame();
+    if(finaleIdx>=finaleQueue.length&&now>=finaleNext+650){
+      /* Voluntary exit: bank the round exactly like a real game over
+         (finishGame clears the snapshot -- a finished round has no future),
+         then goHome() swaps the Game Over card for the home screen in the
+         same tick, so the card never paints. goHome cannot re-snapshot here:
+         state is already "over", and the snapshot is already gone. */
+      if(finaleExit){ finaleExit=false; finishGame(); goHome(); }
+      else finishGame();
+    }
   }
   if(state==="play"){
     /* Thaw must be checked OUTSIDE frozen(): frozen() is
@@ -3587,6 +3618,9 @@ function initScreen(){
 
 /* ---------- 17. debug ---------- */
 window.FM_DEBUG={
+  /* Voluntary-exit smoke test: runs the same cascade popAndExit runs. Only
+     fires from "play" -- call it after seeding the board. */
+  popExit:function(){ popAndExit(); return state; },
   /* Purely observational hooks for visual regression: spectator buddies never
      change collision bodies, player inventory or scoring. */
   spectators:function(){return {background:!!playBg(),basket:BASKET_OK,
